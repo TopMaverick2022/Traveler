@@ -1,38 +1,59 @@
 <?php
+session_start();
+require_once 'db_connection.php';
 
-$con=mysqli_connect('localhost','root','','travel');
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $username = trim($_POST['username']);
+    $password = trim($_POST['password']);
+    $email = trim($_POST['email']); // Assuming email is part of registration
 
+    // Validate input
+    if (empty($username) || empty($password) || empty($email)) {
+        $_SESSION['message'] = 'All fields are required.';
+        header("Location: signup.php");
+        exit();
+    }
 
-$firstname=$_POST['fname'];
-$password=$_POST['password'];
-$email=$_POST['email'];
-$city=$_POST['city'];
-$phone=$_POST['phone'];
+    // Hash the password
+    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+    $role = 'user'; // Assign default role as 'user'
 
+    // Prepare an insert statement using prepared statements to prevent SQL injection
+    $sql = "INSERT INTO customer (username, password, email, role) VALUES (?, ?, ?, ?)";
 
-$sql="INSERT INTO `customer`(`id`,`fname`,`password`,`email`,`city`,`phone`) VALUES (0,'$firstname','$password','$email','$city','$phone')";
-$result = mysqli_query($con,$sql);
+    if ($stmt = $conn->prepare($sql)) {
+        // Bind variables to the prepared statement as parameters
+        $stmt->bind_param("ssss", $username, $hashed_password, $email, $role);
 
-if($result)
-{
-	if($firstname=="admin" && $password == "ad123"){
-		header("location:admin.php");
+        // Attempt to execute the prepared statement
+        if ($stmt->execute()) {
+            $_SESSION['message'] = 'Registration successful! Please log in.';
+            header("Location: index.php");
+            exit();
+        } else {
+            // Check for duplicate username error specifically
+            if ($conn->errno == 1062) { // MySQL error code for duplicate entry
+                $_SESSION['message'] = 'Registration failed: Username already exists.';
+            } else {
+                $_SESSION['message'] = 'Registration failed: ' . $stmt->error;
+            }
+            header("Location: signup.php");
+            exit();
+        }
 
-	}
-	else{
-		header("location:mainPage.html");
-	}
+        // Close statement
+        $stmt->close();
+    } else {
+        $_SESSION['message'] = 'Database error: Could not prepare statement.';
+        header("Location: signup.php");
+        exit();
+    }
 }
-else{
-	$que = "SELECT `fname` FROM `customer` WHERE fname='$firstname'";
-	$result = mysqli_query($con,$que);
-	if($result){
-		?>
-		<script type="text/javascript">
-			alert("username already taken")
-		</script>
-		<?php
-	}
-}
 
+// Close connection
+$conn->close();
+
+// If somehow accessed directly without POST, redirect to signup page
+header("Location: signup.php");
+exit();
 ?>

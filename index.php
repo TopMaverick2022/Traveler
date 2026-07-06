@@ -18,8 +18,8 @@ if (isset($_SESSION['message'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Traveler - Sign Up</title>
-    <link rel="stylesheet" href="css/signup.css">
+    <title>Traveler - Login</title>
+    <link rel="stylesheet" href="css/signin.css">
     <link rel="stylesheet" href="css/style.css"> <!-- For general styling -->
 </head>
 <body>
@@ -36,18 +36,16 @@ if (isset($_SESSION['message'])) {
             <p style="color: red; text-align: center;"><?php echo htmlspecialchars($message); ?></p>
         <?php endif; ?>
         
-        <!-- Original content of signup.html (signup form) starts here -->
-        <form action="save.php" method="post">
-            <h2>Sign Up</h2>
+        <!-- Original content of index.html (login form) starts here -->
+        <form action="signin.php" method="post">
+            <h2>Login</h2>
             <label for="username">Username:</label>
             <input type="text" id="username" name="username" required>
-            <label for="email">Email:</label>
-            <input type="email" id="email" name="email" required>
             <label for="password">Password:</label>
             <input type="password" id="password" name="password" required>
-            <button type="submit">Register</button>
+            <button type="submit">Login</button>
         </form>
-        <p>Already have an account? <a href="index.php">Login</a></p>
+        <p>Don't have an account? <a href="signup.php">Sign Up</a></p>
         <!-- End of original content -->
     </div>
     <footer>
