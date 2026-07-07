@@ -1,84 +1,75 @@
 <?php
 session_start();
-require_once 'db_connection.php'; // Include the new centralized database connection
 
-// Check if user is logged in, if not redirect to login page
+// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
-    $_SESSION['payment_message'] = 'Please log in to complete payment.';
+    $_SESSION['error'] = "Please log in to process payment.";
     header("Location: index.php");
     exit();
 }
 
-// Any existing 'include "junk.php";' or 'include "infop.php";' should be removed.
-// All database interactions in this file should now use the $conn variable.
+require_once 'db_connection.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $booking_id = intval($_POST['booking_id']);
-    $amount = floatval($_POST['amount']);
-    $card_number = trim($_POST['card_number']);
-    $expiry_date = trim($_POST['expiry_date']);
-    $cvv = trim($_POST['cvv']);
-    $user_id = $_SESSION['user_id'];
-
-    // --- Start of original process_payment.php logic (adapted) ---
+    $booking_id = $_POST['booking_id'] ?? null;
+    $amount = $_POST['amount'] ?? 0;
+    $card_number = $_POST['card_number'] ?? '';
+    $card_name = $_POST['card_name'] ?? '';
+    $expiry_month = $_POST['expiry_month'] ?? '';
+    $expiry_year = $_POST['expiry_year'] ?? '';
+    $cvv = $_POST['cvv'] ?? '';
+    $customer_id = $_SESSION['user_id'];
 
     // Basic validation
-    if (empty($booking_id) || empty($amount) || empty($card_number) || empty($expiry_date) || empty($cvv)) {
-        $_SESSION['payment_message'] = 'All payment fields are required.';
-        header("Location: payment.php?booking_id=" . $booking_id);
+    if (empty($booking_id) || empty($amount) || empty($card_number) || empty($card_name) || empty($expiry_month) || empty($expiry_year) || empty($cvv)) {
+        $_SESSION['error'] = "All payment fields are required.";
+        header("Location: payment.php?booking_id=" . htmlspecialchars($booking_id));
         exit();
     }
 
-    // In a real application, you would integrate with a payment gateway here.
-    // For this example, we'll simulate a successful payment.
+    // Further validation (e.g., card number format, expiry date, CVV length)
+    if (!is_numeric($booking_id) || $amount <= 0 || !preg_match('/^[0-9]{13,19}$/', $card_number) || !preg_match('/^(0[1-9]|1[0-2])$/', $expiry_month) || !preg_match('/^[0-9]{2}$/', $expiry_year) || !preg_match('/^[0-9]{3,4}$/', $cvv)) {
+        $_SESSION['error'] = "Invalid payment details provided.";
+        header("Location: payment.php?booking_id=" . htmlspecialchars($booking_id));
+        exit();
+    }
 
-    $transaction_status = 'failed';
-    $transaction_id = 'TRX' . uniqid(); // Simulated transaction ID
-
-    // Simulate payment processing logic
-    // If payment gateway returns success:
-    $payment_successful = (rand(0, 100) > 10); // 90% chance of success
+    // --- Simulate Payment Gateway Interaction ---
+    // In a real application, you would send these details to a payment gateway (Stripe, PayPal, etc.)
+    // The gateway would return a success/failure response and a transaction ID.
+    $payment_successful = true; // Simulate success
+    $transaction_id = 'TRX-' . uniqid(); // Generate a unique transaction ID
+    $payment_status = 'Completed';
 
     if ($payment_successful) {
-        $transaction_status = 'completed';
-        $_SESSION['payment_message'] = 'Payment successful! Your booking is confirmed.';
-
-        // Update booking status in database (assuming a 'status' column in 'bookings' table)
-        $sql_update_booking = "UPDATE bookings SET status = ?, transaction_id = ? WHERE id = ? AND user_id = ?";
-        if ($stmt_update = $conn->prepare($sql_update_booking)) {
-            $new_status = 'Confirmed';
-            $stmt_update->bind_param("ssii", $new_status, $transaction_id, $booking_id, $user_id);
-            $stmt_update->execute();
-            $stmt_update->close();
-        } else {
-            // Log error but don't stop user flow
-            error_log("Failed to update booking status for ID " . $booking_id . ": " . $conn->error);
+        // Update booking status in the database
+        $stmt = $conn->prepare("UPDATE booking SET status = ?, transaction_id = ? WHERE booking_id = ? AND customer_id = ?");
+        if ($stmt === false) {
+            $_SESSION['error'] = "Database error updating booking status: " . $conn->error;
+            header("Location: payment.php?booking_id=" . htmlspecialchars($booking_id));
+            exit();
         }
-    } else {
-        $transaction_status = 'failed';
-        $_SESSION['payment_message'] = 'Payment failed. Please check your details or try again.';
-        // Optionally, store failed transaction attempt
-    }
+        $stmt->bind_param("ssii", $payment_status, $transaction_id, $booking_id, $customer_id);
 
-    // Log payment attempt (assuming a 'payments' table)
-    $sql_log_payment = "INSERT INTO payments (booking_id, user_id, amount, transaction_id, status, payment_date) VALUES (?, ?, ?, ?, ?, NOW())";
-    if ($stmt_log = $conn->prepare($sql_log_payment)) {
-        $stmt_log->bind_param("iidsi", $booking_id, $user_id, $amount, $transaction_id, $transaction_status);
-        $stmt_log->execute();
-        $stmt_log->close();
+        if ($stmt->execute()) {
+            $_SESSION['message'] = "Payment successful! Your booking (#" . htmlspecialchars($booking_id) . ") is confirmed. Transaction ID: " . htmlspecialchars($transaction_id) . ".";
+            header("Location: mainPage.php"); // Redirect to main page or a confirmation page
+            exit();
+        } else {
+            $_SESSION['error'] = "Payment processed but failed to update booking status: " . $stmt->error . ". Please contact support with transaction ID: " . htmlspecialchars($transaction_id) . ".";
+            header("Location: payment.php?booking_id=" . htmlspecialchars($booking_id));
+            exit();
+        }
+        $stmt->close();
     } else {
-        error_log("Failed to log payment attempt for booking ID " . $booking_id . ": " . $conn->error);
+        $_SESSION['error'] = "Payment failed. Please try again or use a different payment method.";
+        header("Location: payment.php?booking_id=" . htmlspecialchars($booking_id));
+        exit();
     }
-
-    // --- End of original process_payment.php logic ---
 
     $conn->close();
-    header("Location: payment.php?booking_id=" . $booking_id); // Redirect back to payment page to show status
+} else {
+    $_SESSION['error'] = "Invalid access to payment processing.";
+    header("Location: mainPage.php"); // Redirect if accessed directly
     exit();
 }
-
-$conn->close();
-// If not a POST request, redirect to booking or home page
-header("Location: booking.php");
-exit();
-?>

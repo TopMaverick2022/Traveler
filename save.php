@@ -4,56 +4,58 @@ require_once 'db_connection.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = trim($_POST['username']);
-    $password = trim($_POST['password']);
-    $email = trim($_POST['email']); // Assuming email is part of registration
+    $email = trim($_POST['email']);
+    $password = $_POST['password']; // Raw password from form
+    $phone = trim($_POST['phone']);
+    $address = trim($_POST['address']);
+    $dob = trim($_POST['dob']);
 
-    // Validate input
-    if (empty($username) || empty($password) || empty($email)) {
-        $_SESSION['message'] = 'All fields are required.';
-        header("Location: signup.php");
-        exit();
-    }
+    // Default role for new users
+    $role = 'user';
 
-    // Hash the password
+    // Hash the password securely
     $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-    $role = 'user'; // Assign default role as 'user'
 
-    // Prepare an insert statement using prepared statements to prevent SQL injection
-    $sql = "INSERT INTO customer (username, password, email, role) VALUES (?, ?, ?, ?)";
+    // Check if username or email already exists
+    $stmt_check = $conn->prepare("SELECT customer_id FROM customer WHERE username = ? OR email = ?");
+    $stmt_check->bind_param("ss", $username, $email);
+    $stmt_check->execute();
+    $stmt_check->store_result();
 
-    if ($stmt = $conn->prepare($sql)) {
-        // Bind variables to the prepared statement as parameters
-        $stmt->bind_param("ssss", $username, $hashed_password, $email, $role);
-
-        // Attempt to execute the prepared statement
-        if ($stmt->execute()) {
-            $_SESSION['message'] = 'Registration successful! Please log in.';
-            header("Location: index.php");
-            exit();
-        } else {
-            // Check for duplicate username error specifically
-            if ($conn->errno == 1062) { // MySQL error code for duplicate entry
-                $_SESSION['message'] = 'Registration failed: Username already exists.';
-            } else {
-                $_SESSION['message'] = 'Registration failed: ' . $stmt->error;
-            }
-            header("Location: signup.php");
-            exit();
-        }
-
-        // Close statement
-        $stmt->close();
-    } else {
-        $_SESSION['message'] = 'Database error: Could not prepare statement.';
+    if ($stmt_check->num_rows > 0) {
+        $_SESSION['error'] = "Username or Email already exists. Please choose a different one.";
         header("Location: signup.php");
         exit();
     }
+    $stmt_check->close();
+
+    // Prepare and bind for insertion
+    $stmt = $conn->prepare("INSERT INTO customer (username, email, password, phone, address, dob, role) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    if ($stmt === false) {
+        $_SESSION['error'] = "Database error: Could not prepare statement. " . $conn->error;
+        header("Location: signup.php");
+        exit();
+    }
+    $stmt->bind_param("sssssss", $username, $email, $hashed_password, $phone, $address, $dob, $role);
+
+    // Execute the statement
+    if ($stmt->execute()) {
+        // Registration successful, log the user in automatically
+        $_SESSION['user_id'] = $conn->insert_id;
+        $_SESSION['username'] = $username;
+        $_SESSION['role'] = $role;
+        $_SESSION['message'] = "Registration successful! Welcome, " . $username . ".";
+        header("Location: mainPage.php");
+        exit();
+    } else {
+        $_SESSION['error'] = "Registration failed: " . $stmt->error;
+        header("Location: signup.php");
+        exit();
+    }
+
+    $stmt->close();
+    $conn->close();
+} else {
+    header("Location: signup.php"); // Redirect if accessed directly
+    exit();
 }
-
-// Close connection
-$conn->close();
-
-// If somehow accessed directly without POST, redirect to signup page
-header("Location: signup.php");
-exit();
-?>

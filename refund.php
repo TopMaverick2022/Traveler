@@ -1,165 +1,177 @@
 <?php
 session_start();
-require_once 'db_connection.php'; // Include the new centralized database connection
 
-// Check if user is logged in, if not redirect to login page
+// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
-    $_SESSION['message'] = 'Please log in to process refunds.';
+    $_SESSION['error'] = "Please log in to request a refund.";
     header("Location: index.php");
     exit();
 }
 
-// Check if the user is an admin for refund functionality
-if ($_SESSION['role'] !== 'admin') {
-    $_SESSION['message'] = 'Access denied. Only administrators can process refunds.';
-    header("Location: mainPage.php"); // Redirect to a user page or admin panel
-    exit();
+// Check if user is an admin or the owner of the booking for refund requests
+$is_admin = ($_SESSION['role'] === 'admin');
+
+require_once 'db_connection.php';
+
+$booking_id = $_GET['booking_id'] ?? null;
+$message = '';
+$error = '';
+$booking_details = null;
+
+// Fetch booking details for display
+if ($booking_id) {
+    $query = "SELECT b.booking_id, b.total_price, b.status, d.destination_name, c.username, b.transaction_id ";
+    $query .= "FROM booking b JOIN destination d ON b.destination_id = d.destination_id JOIN customer c ON b.customer_id = c.customer_id ";
+    $query .= "WHERE b.booking_id = ? ";
+    // Only allow owner or admin to view refund page for a specific booking
+    if (!$is_admin) {
+        $query .= "AND b.customer_id = ?";
+    }
+
+    $stmt = $conn->prepare($query);
+    if ($is_admin) {
+        $stmt->bind_param("i", $booking_id);
+    } else {
+        $stmt->bind_param("ii", $booking_id, $_SESSION['user_id']);
+    }
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows == 1) {
+        $booking_details = $result->fetch_assoc();
+    } else {
+        $error = "Booking not found or you don't have permission to view this refund request.";
+    }
+    $stmt->close();
+} else {
+    $error = "No booking ID provided for refund.";
 }
 
-// Any existing 'include "junk.php";' or 'include "infop.php";' should be removed.
-// All database interactions in this file should now use the $conn variable.
+// Handle refund request submission (typically by admin after review, or user initiated)
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['request_refund']) && $booking_details) {
+    // In a real system, this would trigger a refund process with the payment gateway
+    // and potentially require admin approval.
 
-$refund_message = '';
-
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $booking_id = intval($_POST['booking_id']);
-    $amount_to_refund = floatval($_POST['amount']);
-
-    if (empty($booking_id) || $amount_to_refund <= 0) {
-        $refund_message = 'Invalid booking ID or refund amount.';
-    } else {
-        // --- Start of original refund.php logic (adapted) ---
-        // Fetch booking details to verify
-        $sql_booking = "SELECT user_id, transaction_id, amount FROM payments WHERE booking_id = ? AND status = 'completed'";
-        if ($stmt_booking = $conn->prepare($sql_booking)) {
-            $stmt_booking->bind_param("i", $booking_id);
-            $stmt_booking->execute();
-            $result_booking = $stmt_booking->get_result();
-
-            if ($result_booking->num_rows == 1) {
-                $payment_info = $result_booking->fetch_assoc();
-                if ($amount_to_refund > $payment_info['amount']) {
-                    $refund_message = 'Refund amount exceeds original payment.';
-                } else {
-                    // Simulate refund process with payment gateway
-                    $refund_successful = (rand(0, 100) > 20); // 80% chance of success
-
-                    if ($refund_successful) {
-                        // Update payment status to refunded or add a new refund entry
-                        $sql_update_payment = "UPDATE payments SET status = 'refunded', refund_amount = ? WHERE booking_id = ?";
-                        if ($stmt_update = $conn->prepare($sql_update_payment)) {
-                            $stmt_update->bind_param("di", $amount_to_refund, $booking_id);
-                            $stmt_update->execute();
-                            $stmt_update->close();
-                        }
-
-                        // Update booking status if necessary
-                        $sql_update_booking_status = "UPDATE bookings SET status = 'Refunded' WHERE id = ?";
-                        if ($stmt_update_booking_status = $conn->prepare($sql_update_booking_status)) {
-                            $stmt_update_booking_status->bind_param("i", $booking_id);
-                            $stmt_update_booking_status->execute();
-                            $stmt_update_booking_status->close();
-                        }
-
-                        $refund_message = 'Refund for Booking ID ' . $booking_id . ' of $' . number_format($amount_to_refund, 2) . ' processed successfully.';
-                    } else {
-                        $refund_message = 'Refund failed for Booking ID ' . $booking_id . '. Please try again or contact support.';
-                    }
-                }
-            } else {
-                $refund_message = 'No completed payment found for Booking ID ' . $booking_id . ' or already refunded.';
-            }
-            $stmt_booking->close();
+    if ($booking_details['status'] === 'Refunded' || $booking_details['status'] === 'Cancelled') {
+        $error = "This booking has already been refunded or cancelled.";
+    } else if ($is_admin) {
+        // Admin can directly process refund (simulate)
+        $new_status = 'Refunded';
+        $stmt = $conn->prepare("UPDATE booking SET status = ? WHERE booking_id = ?");
+        $stmt->bind_param("si", $new_status, $booking_id);
+        if ($stmt->execute()) {
+            $message = "Booking #" . htmlspecialchars($booking_id) . " successfully refunded by admin.";
+            $booking_details['status'] = $new_status; // Update status for display
         } else {
-            $refund_message = 'Database error: Could not prepare statement for refund verification.';
+            $error = "Failed to process refund: " . $stmt->error;
         }
-        // --- End of original refund.php logic ---
+        $stmt->close();
+    } else {
+        // User requests refund - usually changes status to 'RefundRequested' for admin review
+        $new_status = 'Refund Requested';
+        $stmt = $conn->prepare("UPDATE booking SET status = ? WHERE booking_id = ? AND customer_id = ?");
+        $stmt->bind_param("sii", $new_status, $booking_id, $_SESSION['user_id']);
+        if ($stmt->execute()) {
+            $message = "Your refund request for booking #" . htmlspecialchars($booking_id) . " has been submitted for review.";
+            $booking_details['status'] = $new_status; // Update status for display
+        } else {
+            $error = "Failed to submit refund request: " . $stmt->error;
+        }
+        $stmt->close();
     }
-    $_SESSION['refund_message'] = $refund_message;
-    header("Location: admin.php"); // Redirect back to admin panel or a refund history page
-    exit();
 }
 
 $conn->close();
-
-// Display refund form for admin if not a POST request
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Traveler - Process Refund</title>
-    <link rel="stylesheet" href="css/admin.css">
+    <title>Traveler - Refund Request</title>
     <link rel="stylesheet" href="css/style.css">
+    <!-- Assuming a specific CSS for refund might be needed, or reuse payment.css/booking.css -->
+    <link rel="stylesheet" href="css/payment.css">
+    <style>
+        .refund-container { max-width: 600px; margin: 40px auto; padding: 20px; background-color: #f9f9f9; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .refund-container h1, .refund-container h2 { text-align: center; color: #333; }
+        .refund-details p { margin-bottom: 10px; }
+        .refund-details strong { color: #555; }
+        .refund-button { display: block; width: 100%; padding: 10px; background-color: #dc3545; color: white; border: none; border-radius: 5px; font-size: 1.1em; cursor: pointer; transition: background-color 0.3s ease; margin-top: 20px; }
+        .refund-button:hover { background-color: #c82333; }
+        .message { color: green; font-weight: bold; text-align: center; margin-bottom: 15px; }
+        .error { color: red; font-weight: bold; text-align: center; margin-bottom: 15px; }
+    </style>
 </head>
 <body>
     <header>
         <nav>
-            <ul>
-                <li><a href="mainPage.php">Home</a></li>
-                <li><a href="admin.php">Admin Panel</a></li>
-                <li><a href="logout.php">Logout</a></li>
+            <div class="logo">
+                <a href="mainPage.php">Traveler</a>
+            </div>
+            <ul class="nav-links">
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <li><a href="mainPage.php">Home</a></li>
+                    <li><a href="destination.php">Destinations</a></li>
+                    <li><a href="gallery.php">Gallery</a></li>
+                    <li><a href="guide.php">Guides</a></li>
+                    <li><a href="feedback.php">Feedback</a></li>
+                    <li><a href="info.php">About Us</a></li>
+                    <li><span>Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?></span></li>
+                    <li><a href="logout.php">Logout</a></li>
+                <?php else: ?>
+                    <li><a href="index.php">Sign In</a></li>
+                    <li><a href="signup.php">Sign Up</a></li>
+                <?php endif; ?>
             </ul>
         </nav>
     </header>
+
     <main>
-        <h1>Process Refund</h1>
-        <?php
-        if (isset($_SESSION['refund_message'])) {
-            echo '<p style="color: ' . (strpos($_SESSION['refund_message'], 'failed') !== false ? 'red' : 'green') . '; text-align: center;">' . htmlspecialchars($_SESSION['refund_message']) . '</p>';
-            unset($_SESSION['refund_message']);
-        }
-        ?>
-        <p>Use this form to process refunds for bookings.</p>
-        <form action="refund.php" method="post" class="refund-form">
-            <label for="booking_id">Booking ID:</label>
-            <input type="number" id="booking_id" name="booking_id" required>
+        <div class="refund-container">
+            <h1>Refund Request</h1>
 
-            <label for="amount">Amount to Refund:</label>
-            <input type="number" id="amount" name="amount" step="0.01" min="0.01" required>
+            <?php if ($message): ?>
+                <p class="message"><?php echo htmlspecialchars($message); ?></p>
+            <?php endif; ?>
+            <?php if ($error): ?>
+                <p class="error"><?php echo htmlspecialchars($error); ?></p>
+            <?php endif; ?>
 
-            <button type="submit">Process Refund</button>
-        </form>
+            <?php if ($booking_details): ?>
+                <h2>Booking Details</h2>
+                <div class="refund-details">
+                    <p><strong>Booking ID:</strong> <?php echo htmlspecialchars($booking_details['booking_id']); ?></p>
+                    <p><strong>Customer:</strong> <?php echo htmlspecialchars($booking_details['username']); ?></p>
+                    <p><strong>Destination:</strong> <?php echo htmlspecialchars($booking_details['destination_name']); ?></p>
+                    <p><strong>Total Price:</strong> $<?php echo htmlspecialchars(number_format($booking_details['total_price'], 2)); ?></p>
+                    <p><strong>Current Status:</strong> <?php echo htmlspecialchars($booking_details['status']); ?></p>
+                    <p><strong>Transaction ID:</strong> <?php echo htmlspecialchars($booking_details['transaction_id'] ?? 'N/A'); ?></p>
+                </div>
 
-        <section>
-            <h2>Recent Payments (for Admin reference)</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Booking ID</th>
-                        <th>User ID</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                        <th>Transaction ID</th>
-                        <th>Date</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    require_once 'db_connection.php'; // Re-open connection for display
-                    $result = $conn->query("SELECT booking_id, user_id, amount, status, transaction_id, payment_date FROM payments ORDER BY payment_date DESC LIMIT 10");
-                    if ($result && $result->num_rows > 0) {
-                        while ($row = $result->fetch_assoc()) {
-                            echo "<tr>";
-                            echo "<td>" . htmlspecialchars($row['booking_id']) . "</td>";
-                            echo "<td>" . htmlspecialchars($row['user_id']) . "</td>";
-                            echo "<td>$" . number_format($row['amount'], 2) . "</td>";
-                            echo "<td>" . htmlspecialchars($row['status']) . "</td>";
-                            echo "<td>" . htmlspecialchars($row['transaction_id']) . "</td>";
-                            echo "<td>" . htmlspecialchars($row['payment_date']) . "</td>";
-                            echo "</tr>";
-                        }
-                    } else {
-                        echo "<tr><td colspan='6'>No recent payments found.</td></tr>";
-                    }
-                    $conn->close();
-                    ?>
-                </tbody>
-            </table>
-        </section>
+                <?php if ($booking_details['status'] === 'Refunded'): ?>
+                    <p style="text-align: center; color: green; font-weight: bold;">This booking has already been successfully refunded.</p>
+                <?php elseif ($booking_details['status'] === 'Refund Requested'): ?>
+                    <p style="text-align: center; color: orange; font-weight: bold;">A refund for this booking is already under review.</p>
+                <?php else: // Can request refund if not already refunded or requested ?>
+                    <form action="refund.php?booking_id=<?php echo htmlspecialchars($booking_id); ?>" method="POST">
+                        <input type="hidden" name="request_refund" value="1">
+                        <button type="submit" class="refund-button" onclick="return confirm('Are you sure you want to request a refund for this booking?');">
+                            <?php echo $is_admin ? 'Process Refund' : 'Request Refund'; ?>
+                        </button>
+                    </form>
+                    <p style="text-align: center; margin-top: 15px; font-size: 0.9em; color: #777;">Refunds are subject to terms and conditions.</p>
+                <?php endif; ?>
 
+            <?php else: ?>
+                <p style="text-align: center;">Please provide a valid booking ID to initiate a refund request.</p>
+                <?php if ($is_admin): ?>
+                    <p style="text-align: center;"><a href="admin_op.php?action=manage_bookings">Back to Manage Bookings</a></p>
+                <?php endif; ?>
+            <?php endif; ?>
+        </div>
     </main>
+
     <footer>
         <p>&copy; 2023 Traveler. All rights reserved.</p>
     </footer>

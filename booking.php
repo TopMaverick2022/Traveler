@@ -1,54 +1,65 @@
 <?php
 session_start();
-require_once 'db_connection.php'; // Include the new centralized database connection
 
-// Check if user is logged in, if not redirect to login page
+// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
-    $_SESSION['message'] = 'Please log in to make a booking.';
+    $_SESSION['error'] = "Please log in to make a booking.";
     header("Location: index.php");
     exit();
 }
 
-// Any existing 'include "junk.php";' or 'include "infop.php";' should be removed.
-// All database interactions in this file should now use the $conn variable.
+require_once 'db_connection.php';
 
-$username = htmlspecialchars($_SESSION['username']);
-$user_role = htmlspecialchars($_SESSION['role']);
+$destination_id = $_GET['destination_id'] ?? null;
+$destination_name = 'Selected Destination';
+$destination_price = 0;
+$message = '';
+$error = '';
 
-// --- Start of original booking.php logic (adapted) ---
-$booking_message = '';
-
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $destination = trim($_POST['destination']);
-    $travel_date = trim($_POST['travel_date']);
-    $num_travelers = intval($_POST['num_travelers']);
-    $user_id = $_SESSION['user_id'];
-
-    if (empty($destination) || empty($travel_date) || $num_travelers <= 0) {
-        $booking_message = 'Please fill all booking details correctly.';
+// Fetch destination details if ID is provided
+if ($destination_id) {
+    $stmt = $conn->prepare("SELECT destination_name, price FROM destination WHERE destination_id = ?");
+    $stmt->bind_param("i", $destination_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($result->num_rows > 0) {
+        $dest = $result->fetch_assoc();
+        $destination_name = $dest['destination_name'];
+        $destination_price = $dest['price'];
     } else {
-        // Example: Insert booking into a 'bookings' table
-        // Assuming 'bookings' table has: id, user_id, destination, travel_date, num_travelers, booking_date
-        $sql = "INSERT INTO bookings (user_id, destination, travel_date, num_travelers, booking_date) VALUES (?, ?, ?, ?, NOW())";
-        if ($stmt = $conn->prepare($sql)) {
-            $stmt->bind_param("isii", $user_id, $destination, $travel_date, $num_travelers);
+        $error = "Destination not found.";
+        $destination_id = null; // Invalidate destination if not found
+    }
+    $stmt->close();
+}
+
+if ($_SERVER["REQUEST_METHOD"] == "POST" && $destination_id) {
+    $customer_id = $_SESSION['user_id'];
+    $booking_date = date('Y-m-d'); // Current date for booking
+    $travel_date = trim($_POST['travel_date']);
+    $num_travelers = intval(trim($_POST['num_travelers']));
+    $total_price = $destination_price * $num_travelers;
+    $status = 'Pending'; // Default status
+
+    if (empty($travel_date) || $num_travelers <= 0) {
+        $error = "Please fill all required fields and ensure number of travelers is positive.";
+    } else {
+        $stmt = $conn->prepare("INSERT INTO booking (customer_id, destination_id, booking_date, travel_date, num_travelers, total_price, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        if ($stmt === false) {
+            $error = "Database error: Could not prepare statement. " . $conn->error;
+        } else {
+            $stmt->bind_param("iissids", $customer_id, $destination_id, $booking_date, $travel_date, $num_travelers, $total_price, $status);
             if ($stmt->execute()) {
-                $booking_message = 'Booking successful! You can proceed to payment.';
-                // Optionally redirect to payment page
-                // header("Location: payment.php?booking_id=" . $stmt->insert_id);
-                // exit();
+                $_SESSION['message'] = "Booking for '" . htmlspecialchars($destination_name) . "' submitted successfully! Total: $" . number_format($total_price, 2) . ". Please proceed to payment.";
+                header("Location: payment.php?booking_id=" . $conn->insert_id); // Redirect to payment with booking ID
+                exit();
             } else {
-                $booking_message = 'Error during booking: ' . $stmt->error;
+                $error = "Booking failed: " . $stmt->error;
             }
             $stmt->close();
-        } else {
-            $booking_message = 'Database error: Could not prepare statement for booking.';
         }
     }
 }
-
-// --- End of original booking.php logic ---
-
 $conn->close();
 ?>
 <!DOCTYPE html>
@@ -57,51 +68,70 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Traveler - Book Your Trip</title>
-    <link rel="stylesheet" href="css/booking.css">
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/booking.css">
 </head>
 <body>
     <header>
         <nav>
-            <ul>
-                <li><a href="mainPage.php">Home</a></li>
-                <li><a href="destination.php">Destinations</a></li>
-                <li><a href="gallery.php">Gallery</a></li>
-                <li><a href="guide.php">Guides</a></li>
-                <li><a href="feedback.php">Feedback</a></li>
+            <div class="logo">
+                <a href="mainPage.php">Traveler</a>
+            </div>
+            <ul class="nav-links">
                 <?php if (isset($_SESSION['user_id'])): ?>
-                    <li><span>Welcome, <?php echo $username; ?>!</span></li>
+                    <li><a href="mainPage.php">Home</a></li>
+                    <li><a href="destination.php">Destinations</a></li>
+                    <li><a href="gallery.php">Gallery</a></li>
+                    <li><a href="guide.php">Guides</a></li>
+                    <li><a href="feedback.php">Feedback</a></li>
+                    <li><a href="info.php">About Us</a></li>
+                    <li><span>Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?></span></li>
                     <li><a href="logout.php">Logout</a></li>
-                    <?php if ($user_role === 'admin'): ?>
-                        <li><a href="admin.php">Admin Panel</a></li>
-                    <?php endif; ?>
                 <?php else: ?>
-                    <li><a href="index.php">Login</a></li>
+                    <li><a href="index.php">Sign In</a></li>
                     <li><a href="signup.php">Sign Up</a></li>
                 <?php endif; ?>
             </ul>
         </nav>
     </header>
-    <main>
-        <h1>Book Your Dream Trip</h1>
-        <?php if ($booking_message): ?>
-            <p style="color: <?php echo (strpos($booking_message, 'Error') !== false) ? 'red' : 'green'; ?>; text-align: center;"><?php echo htmlspecialchars($booking_message); ?></p>
+
+    <main class="booking-page">
+        <h1>Book Your Trip to <?php echo htmlspecialchars($destination_name); ?></h1>
+        <p>Complete the form below to book your adventure.</p>
+
+        <?php if ($error): ?>
+            <p class="error-message"><?php echo htmlspecialchars($error); ?></p>
+        <?php endif; ?>
+        <?php if ($message): // Display message if redirected here without errors but potentially with a success message from prev step ?>
+            <p class="success-message"><?php echo htmlspecialchars($message); ?></p>
         <?php endif; ?>
 
-        <form action="booking.php" method="post" class="booking-form">
-            <label for="destination">Destination:</label>
-            <input type="text" id="destination" name="destination" placeholder="e.g., Paris, Japan" required>
+        <?php if ($destination_id): ?>
+        <div class="booking-form-container">
+            <form action="booking.php?destination_id=<?php echo htmlspecialchars($destination_id); ?>" method="POST">
+                <div class="form-group">
+                    <label for="destination">Destination</label>
+                    <input type="text" id="destination" value="<?php echo htmlspecialchars($destination_name); ?> (Price: $<?php echo htmlspecialchars(number_format($destination_price, 2)); ?>)" readonly>
+                </div>
 
-            <label for="travel_date">Travel Date:</label>
-            <input type="date" id="travel_date" name="travel_date" required>
+                <div class="form-group">
+                    <label for="travel_date">Desired Travel Date</label>
+                    <input type="date" id="travel_date" name="travel_date" required min="<?php echo date('Y-m-d'); ?>">
+                </div>
 
-            <label for="num_travelers">Number of Travelers:</label>
-            <input type="number" id="num_travelers" name="num_travelers" min="1" value="1" required>
+                <div class="form-group">
+                    <label for="num_travelers">Number of Travelers</label>
+                    <input type="number" id="num_travelers" name="num_travelers" min="1" value="1" required>
+                </div>
 
-            <button type="submit">Proceed to Payment</button>
-        </form>
-
+                <button type="submit" class="book-button">Proceed to Payment</button>
+            </form>
+        </div>
+        <?php else: ?>
+            <p>Please select a valid destination from our <a href="destination.php">Destinations page</a>.</p>
+        <?php endif; ?>
     </main>
+
     <footer>
         <p>&copy; 2023 Traveler. All rights reserved.</p>
     </footer>

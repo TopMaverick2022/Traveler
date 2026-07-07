@@ -1,24 +1,16 @@
 <?php
 session_start();
 
-// Check if user is logged in, if not redirect to login page
+// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
-    $_SESSION['message'] = 'Please log in to access the main page.';
+    $_SESSION['error'] = "Please log in to access this page.";
     header("Location: index.php");
     exit();
 }
 
-$message = '';
-if (isset($_SESSION['message'])) {
-    $message = $_SESSION['message'];
-    unset($_SESSION['message']); // Clear the message after displaying
-}
-
-$username = htmlspecialchars($_SESSION['username']);
-$user_role = htmlspecialchars($_SESSION['role']);
-
-// Include your database connection if this page requires DB interaction beyond session
-// require_once 'db_connection.php';
+// Optional: Get and clear any session messages
+$message = $_SESSION['message'] ?? '';
+unset($_SESSION['message']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -31,63 +23,79 @@ $user_role = htmlspecialchars($_SESSION['role']);
 <body>
     <header>
         <nav>
-            <ul>
-                <li><a href="mainPage.php">Home</a></li>
-                <li><a href="destination.php">Destinations</a></li>
-                <li><a href="gallery.php">Gallery</a></li>
-                <li><a href="guide.php">Guides</a></li>
-                <li><a href="feedback.php">Feedback</a></li>
-                <?php if (isset($_SESSION['user_id'])): // If user is logged in ?>
-                    <li><span>Welcome, <?php echo $username; ?>!</span></li>
+            <div class="logo">
+                <a href="mainPage.php">Traveler</a>
+            </div>
+            <ul class="nav-links">
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <li><a href="mainPage.php">Home</a></li>
+                    <li><a href="destination.php">Destinations</a></li>
+                    <li><a href="gallery.php">Gallery</a></li>
+                    <li><a href="guide.php">Guides</a></li>
+                    <li><a href="feedback.php">Feedback</a></li>
+                    <li><a href="info.php">About Us</a></li>
+                    <li><span>Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?></span></li>
                     <li><a href="logout.php">Logout</a></li>
-                    <?php if ($user_role === 'admin'): // Show admin panel link for admins ?>
-                        <li><a href="admin.php">Admin Panel</a></li>
-                    <?php endif; ?>
-                <?php else: // If user is not logged in, typically these links would be hidden on a 'mainPage' that requires login ?>
-                    <li><a href="index.php">Login</a></li>
+                <?php else: ?>
+                    <li><a href="index.php">Sign In</a></li>
                     <li><a href="signup.php">Sign Up</a></li>
                 <?php endif; ?>
             </ul>
         </nav>
     </header>
+
     <main>
         <?php if ($message): ?>
-            <p style="color: green; text-align: center;"><?php echo $message; ?></p>
+            <p class="success-message" style="text-align: center; color: green; font-weight: bold;"><?php echo htmlspecialchars($message); ?></p>
         <?php endif; ?>
-        
-        <!-- Original content of mainPage.html starts here -->
-        <h1>Welcome to Traveler, <?php echo $username; ?>!</h1>
-        <p>Your role: <?php echo $user_role; ?></p>
-        <p>Discover the world's most breathtaking destinations and plan your next adventure with us.</p>
-        
-        <!-- Placeholder for main page content from mainPage.html -->
         <section class="hero">
-            <h2>Explore the Unseen</h2>
-            <p>From serene beaches to majestic mountains, find your perfect escape.</p>
-            <a href="destination.php" class="btn">View Destinations</a>
+            <div class="hero-content">
+                <h1>Explore the World with Traveler</h1>
+                <p>Your journey begins here. Discover breathtaking destinations and create unforgettable memories.</p>
+                <a href="destination.php" class="btn">Find Your Adventure</a>
+            </div>
         </section>
 
         <section class="featured-destinations">
             <h2>Featured Destinations</h2>
             <div class="destination-grid">
+                <!-- Example destination cards -->
                 <div class="destination-card">
+                    <img src="https://via.placeholder.com/300x200?text=Paris" alt="Paris">
                     <h3>Paris, France</h3>
-                    <p>The City of Lights awaits!</p>
+                    <p>The City of Love and Lights.</p>
+                    <a href="destination.php?id=1" class="btn-small">View Details</a>
                 </div>
                 <div class="destination-card">
-                    <h3>Kyoto, Japan</h3>
-                    <p>Experience ancient traditions and stunning gardens.</p>
+                    <img src="https://via.placeholder.com/300x200?text=Tokyo" alt="Tokyo">
+                    <h3>Tokyo, Japan</h3>
+                    <p>A vibrant blend of tradition and modernity.</p>
+                    <a href="destination.php?id=2" class="btn-small">View Details</a>
                 </div>
                 <div class="destination-card">
-                    <h3>Machu Picchu, Peru</h3>
-                    <p>Hike to the lost city of the Incas.</p>
+                    <img src="https://via.placeholder.com/300x200?text=Maui" alt="Maui">
+                    <h3>Maui, Hawaii</h3>
+                    <p>Pristine beaches and lush landscapes.</p>
+                    <a href="destination.php?id=3" class="btn-small">View Details</a>
                 </div>
             </div>
         </section>
 
-        <!-- End of original content -->
-
+        <section class="testimonials">
+            <h2>What Our Travelers Say</h2>
+            <div class="testimonial-slider">
+                <div class="testimonial-item">
+                    <p>"Traveler made my dream vacation a reality! Seamless booking and incredible experiences."</p>
+                    <span>- Jane Doe</span>
+                </div>
+                <div class="testimonial-item">
+                    <p>"Highly recommend Traveler for their excellent service and diverse range of trips."</p>
+                    <span>- John Smith</span>
+                </div>
+            </div>
+        </section>
     </main>
+
     <footer>
         <p>&copy; 2023 Traveler. All rights reserved.</p>
     </footer>
