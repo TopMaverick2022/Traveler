@@ -2,55 +2,57 @@
 session_start();
 require_once 'db_connection.php';
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username_email = trim($_POST['username_email']);
-    $password = $_POST['password'];
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $username_email = trim($_POST['username_email'] ?? '');
+    $password = $_POST['password'] ?? '';
 
-    // Prepare SQL statement to fetch user by username or email
-    $stmt = $conn->prepare("SELECT customer_id, username, email, password, role FROM customer WHERE username = ? OR email = ?");
-    if ($stmt === false) {
-        $_SESSION['error'] = "Database error: Could not prepare statement. " . $conn->error;
-        header("Location: index.php");
+    if (empty($username_email) || empty($password)) {
+        $_SESSION['message'] = 'Please enter both username/email and password.';
+        header('Location: index.php');
         exit();
     }
+
+    // Use prepared statements to prevent SQL injection
+    $stmt = $conn->prepare("SELECT customer_id, username, password, role FROM customer WHERE username = ? OR email = ?");
+    if ($stmt === false) {
+        error_log('Prepare failed: ' . htmlspecialchars($conn->error));
+        $_SESSION['message'] = 'Login failed due to an internal error.';
+        header('Location: index.php');
+        exit();
+    }
+
     $stmt->bind_param("ss", $username_email, $username_email);
     $stmt->execute();
-    $result = $stmt->get_result();
+    $stmt->store_result();
+    $stmt->bind_result($user_id, $username, $hashed_password, $role);
+    $stmt->fetch();
 
-    if ($result->num_rows == 1) {
-        $user = $result->fetch_assoc();
+    if ($stmt->num_rows === 1 && password_verify($password, $hashed_password)) {
+        // Login successful
+        $_SESSION['user_id'] = $user_id;
+        $_SESSION['username'] = $username;
+        $_SESSION['role'] = $role;
+        $_SESSION['message'] = 'Login successful!';
 
-        // Verify the password
-        if (password_verify($password, $user['password'])) {
-            // Password is correct, set session variables
-            $_SESSION['user_id'] = $user['customer_id'];
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['role'] = $user['role'];
-            $_SESSION['message'] = "Login successful! Welcome, " . $user['username'] . ".";
-
-            // Redirect based on role
-            if ($user['role'] == 'admin') {
-                header("Location: admin.php");
-            } else {
-                header("Location: mainPage.php");
-            }
-            exit();
+        if ($role === 'admin') {
+            header('Location: admin.php'); // Redirect admin to admin panel
         } else {
-            // Invalid password
-            $_SESSION['error'] = "Invalid username/email or password.";
-            header("Location: index.php");
-            exit();
+            header('Location: mainPage.php'); // Redirect regular user to main page
         }
+        exit();
     } else {
-        // User not found or multiple users (shouldn't happen with unique username/email)
-        $_SESSION['error'] = "Invalid username/email or password.";
-        header("Location: index.php");
+        // Invalid credentials
+        $_SESSION['message'] = 'Invalid username/email or password.';
+        header('Location: index.php');
         exit();
     }
 
     $stmt->close();
     $conn->close();
+    exit();
 } else {
-    header("Location: index.php"); // Redirect if accessed directly
+    // If accessed directly without POST, redirect to login page
+    header('Location: index.php');
     exit();
 }
+?>

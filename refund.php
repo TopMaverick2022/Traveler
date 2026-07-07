@@ -1,179 +1,171 @@
 <?php
 session_start();
+require_once 'vendor/autoload.php'; // For Stripe PHP SDK
+require_once 'config.php';
+require_once 'db_connection.php';
 
-// Check if user is logged in
-if (!isset($_SESSION['user_id'])) {
-    $_SESSION['error'] = "Please log in to request a refund.";
-    header("Location: index.php");
+if (!defined('STRIPE_SECRET_KEY')) {
+    error_log('Stripe secret key is not defined in config.php');
+    $_SESSION['message'] = 'Refund processing error: Missing Stripe configuration.';
+    header('Location: admin.php'); // Or appropriate redirect
     exit();
 }
 
-// Check if user is an admin or the owner of the booking for refund requests
-$is_admin = ($_SESSION['role'] === 'admin');
+Stripe\Stripe::setApiKey(STRIPE_SECRET_KEY);
 
-require_once 'db_connection.php';
+// Ensure this page is only accessible by authorized users (e.g., admins)
+// This is a basic check; implement robust authentication/authorization for admin actions.
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['is_admin']) || !$_SESSION['is_admin']) {
+    $_SESSION['message'] = 'Access denied. You must be an administrator to process refunds.';
+    header('Location: signin.php');
+    exit();
+}
 
-$booking_id = $_GET['booking_id'] ?? null;
-$message = '';
-$error = '';
-$booking_details = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $payment_id = filter_input(INPUT_POST, 'payment_id', FILTER_VALIDATE_INT);
+    $reason = filter_input(INPUT_POST, 'reason', FILTER_SANITIZE_STRING);
+    $refund_amount = filter_input(INPUT_POST, 'refund_amount', FILTER_VALIDATE_FLOAT); // For partial refunds
 
-// Fetch booking details for display
-if ($booking_id) {
-    $query = "SELECT b.booking_id, b.total_price, b.status, d.destination_name, c.username, b.transaction_id ";
-    $query .= "FROM booking b JOIN destination d ON b.destination_id = d.destination_id JOIN customer c ON b.customer_id = c.customer_id ";
-    $query .= "WHERE b.booking_id = ? ";
-    // Only allow owner or admin to view refund page for a specific booking
-    if (!$is_admin) {
-        $query .= "AND b.customer_id = ?";
+    if (!$payment_id) {
+        $_SESSION['message'] = 'Invalid payment ID provided.';
+        header('Location: admin.php');
+        exit();
     }
 
-    $stmt = $conn->prepare($query);
-    if ($is_admin) {
-        $stmt->bind_param("i", $booking_id);
-    } else {
-        $stmt->bind_param("ii", $booking_id, $_SESSION['user_id']);
-    }
+    // 1. Fetch payment details from database
+    $stmt = $conn->prepare("SELECT * FROM payments WHERE payment_id = ?");
+    $stmt->bind_param('i', $payment_id);
     $stmt->execute();
     $result = $stmt->get_result();
-
-    if ($result->num_rows == 1) {
-        $booking_details = $result->fetch_assoc();
-    } else {
-        $error = "Booking not found or you don't have permission to view this refund request.";
-    }
+    $payment = $result->fetch_assoc();
     $stmt->close();
-} else {
-    $error = "No booking ID provided for refund.";
-}
 
-// Handle refund request submission (typically by admin after review, or user initiated)
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['request_refund']) && $booking_details) {
-    // In a real system, this would trigger a refund process with the payment gateway
-    // and potentially require admin approval.
-
-    if ($booking_details['status'] === 'Refunded' || $booking_details['status'] === 'Cancelled') {
-        $error = "This booking has already been refunded or cancelled.";
-    } else if ($is_admin) {
-        // Admin can directly process refund (simulate)
-        $new_status = 'Refunded';
-        $stmt = $conn->prepare("UPDATE booking SET status = ? WHERE booking_id = ?");
-        $stmt->bind_param("si", $new_status, $booking_id);
-        if ($stmt->execute()) {
-            $message = "Booking #" . htmlspecialchars($booking_id) . " successfully refunded by admin.";
-            $booking_details['status'] = $new_status; // Update status for display
-        } else {
-            $error = "Failed to process refund: " . $stmt->error;
-        }
-        $stmt->close();
-    } else {
-        // User requests refund - usually changes status to 'RefundRequested' for admin review
-        $new_status = 'Refund Requested';
-        $stmt = $conn->prepare("UPDATE booking SET status = ? WHERE booking_id = ? AND customer_id = ?");
-        $stmt->bind_param("sii", $new_status, $booking_id, $_SESSION['user_id']);
-        if ($stmt->execute()) {
-            $message = "Your refund request for booking #" . htmlspecialchars($booking_id) . " has been submitted for review.";
-            $booking_details['status'] = $new_status; // Update status for display
-        } else {
-            $error = "Failed to submit refund request: " . $stmt->error;
-        }
-        $stmt->close();
+    if (!$payment) {
+        $_SESSION['message'] = 'Payment not found in database.';
+        header('Location: admin.php');
+        exit();
     }
+
+    if ($payment['status'] === 'refunded') {
+        $_SESSION['message'] = 'This payment has already been fully refunded.';
+        header('Location: admin.php');
+        exit();
+    }
+
+    $payment_intent_id = $payment['payment_intent_id'];
+    $original_amount = $payment['amount'];
+    $currency = $payment['currency'];
+
+    // Determine actual refund amount. If refund_amount is not specified or invalid, assume full refund.
+    $amount_to_refund = ($refund_amount > 0 && $refund_amount <= $original_amount) ? $refund_amount : $original_amount;
+    $amount_cents = round($amount_to_refund * 100);
+
+    try {
+        // 2. Create a refund request in your database with 'pending' status
+        $stmt_insert_refund = $conn->prepare(
+            "INSERT INTO refund_requests (customer_id, payment_id, reason, status, requested_at)
+             VALUES (?, ?, ?, 'pending', NOW())"
+        );
+        $stmt_insert_refund->bind_param('iis', $payment['customer_id'], $payment_id, $reason);
+        $stmt_insert_refund->execute();
+        $request_id = $stmt_insert_refund->insert_id;
+        $stmt_insert_refund->close();
+
+        // 3. Initiate refund with Stripe API
+        $refund = Stripe\Refund::create([
+            'payment_intent' => $payment_intent_id,
+            'amount' => $amount_cents,
+            'reason' => 'requested_by_customer', // Or other appropriate reason
+            // 'metadata' => ['refund_request_id' => $request_id] // Optional: link to your refund request ID
+        ]);
+
+        // 4. Update refund request status in database
+        $refund_status = $refund->status; // e.g., 'pending', 'succeeded', 'failed'
+        $refund_db_status = 'pending';
+        $payment_new_status = $payment['status'];
+
+        if ($refund_status === 'succeeded') {
+            $refund_db_status = 'refunded';
+            $_SESSION['message'] = 'Refund processed successfully!';
+
+            // Update payment status
+            if ($amount_to_refund >= $original_amount) {
+                $payment_new_status = 'refunded';
+            } else {
+                $payment_new_status = 'partially_refunded';
+            }
+        } else {
+            $refund_db_status = 'failed';
+            $_SESSION['message'] = 'Refund initiated but failed or is pending Stripe review. Status: ' . $refund_status;
+            error_log("Stripe Refund Status: " . $refund_status . " for payment_id={$payment_id}");
+        }
+
+        $stmt_update_refund = $conn->prepare(
+            "UPDATE refund_requests SET status = ?, refund_id = ?, processed_at = NOW() WHERE request_id = ?"
+        );
+        $stmt_update_refund->bind_param('ssi', $refund_db_status, $refund->id, $request_id);
+        $stmt_update_refund->execute();
+        $stmt_update_refund->close();
+
+        // Update original payment record status if successful or partially successful
+        $stmt_update_payment = $conn->prepare(
+            "UPDATE payments SET status = ? WHERE payment_id = ?"
+        );
+        $stmt_update_payment->bind_param('si', $payment_new_status, $payment_id);
+        $stmt_update_payment->execute();
+        $stmt_update_payment->close();
+
+    } catch (Stripe\Exception\ApiErrorException $e) {
+        // Catch Stripe-specific errors
+        $error_message = $e->getMessage();
+        $_SESSION['message'] = 'Stripe API Error during refund: ' . $error_message;
+        error_log("Stripe Refund API Error: " . $error_message . " for payment_id={$payment_id}");
+        $db_status_for_log = 'failed';
+        // Update initial refund_request to failed status if it was inserted
+        if (isset($request_id)) {
+            $stmt_update_refund = $conn->prepare(
+                "UPDATE refund_requests SET status = ?, processed_at = NOW() WHERE request_id = ?"
+            );
+            $stmt_update_refund->bind_param('si', $db_status_for_log, $request_id);
+            $stmt_update_refund->execute();
+            $stmt_update_refund->close();
+        }
+    } catch (Exception $e) {
+        // Catch any other general PHP errors
+        $error_message = $e->getMessage();
+        $_SESSION['message'] = 'An unexpected error occurred during refund processing: ' . $error_message;
+        error_log("General Refund Error: " . $error_message . " for payment_id={$payment_id}");
+        $db_status_for_log = 'failed';
+        if (isset($request_id)) {
+            $stmt_update_refund = $conn->prepare(
+                "UPDATE refund_requests SET status = ?, processed_at = NOW() WHERE request_id = ?"
+            );
+            $stmt_update_refund->bind_param('si', $db_status_for_log, $request_id);
+            $stmt_update_refund->execute();
+            $stmt_update_refund->close();
+        }
+    }
+
+    header('Location: admin.php'); // Redirect back to admin panel or a refund history page
+    exit();
+
+} else {
+    // Display form for refund request (e.g., in admin.php or a dedicated refund request page)
+    // This part would typically be rendered on the admin interface.
+    // For demonstration, we'll just show a simple message if accessed directly without POST.
+    $_SESSION['message'] = 'Please submit refund requests via the administration interface.';
+    header('Location: admin.php');
+    exit();
 }
 
-$conn->close();
+// Example of how to integrate this into admin.php:
+// In admin.php, when listing payments, add a form or link to initiate refund:
+/*
+<form action="refund.php" method="post" style="display:inline;">
+    <input type="hidden" name="payment_id" value="<?php echo $payment['payment_id']; ?>">
+    <input type="number" name="refund_amount" placeholder="Amount (optional)" step="0.01" min="0.01" max="<?php echo $payment['amount']; ?>">
+    <textarea name="reason" placeholder="Reason for refund" required></textarea>
+    <button type="submit" onclick="return confirm('Are you sure you want to process this refund?');">Process Refund</button>
+</form>
+*/
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Traveler - Refund Request</title>
-    <link rel="stylesheet" href="css/style.css">
-    <!-- Assuming a specific CSS for refund might be needed, or reuse payment.css/booking.css -->
-    <link rel="stylesheet" href="css/payment.css">
-    <style>
-        .refund-container { max-width: 600px; margin: 40px auto; padding: 20px; background-color: #f9f9f9; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        .refund-container h1, .refund-container h2 { text-align: center; color: #333; }
-        .refund-details p { margin-bottom: 10px; }
-        .refund-details strong { color: #555; }
-        .refund-button { display: block; width: 100%; padding: 10px; background-color: #dc3545; color: white; border: none; border-radius: 5px; font-size: 1.1em; cursor: pointer; transition: background-color 0.3s ease; margin-top: 20px; }
-        .refund-button:hover { background-color: #c82333; }
-        .message { color: green; font-weight: bold; text-align: center; margin-bottom: 15px; }
-        .error { color: red; font-weight: bold; text-align: center; margin-bottom: 15px; }
-    </style>
-</head>
-<body>
-    <header>
-        <nav>
-            <div class="logo">
-                <a href="mainPage.php">Traveler</a>
-            </div>
-            <ul class="nav-links">
-                <?php if (isset($_SESSION['user_id'])): ?>
-                    <li><a href="mainPage.php">Home</a></li>
-                    <li><a href="destination.php">Destinations</a></li>
-                    <li><a href="gallery.php">Gallery</a></li>
-                    <li><a href="guide.php">Guides</a></li>
-                    <li><a href="feedback.php">Feedback</a></li>
-                    <li><a href="info.php">About Us</a></li>
-                    <li><span>Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?></span></li>
-                    <li><a href="logout.php">Logout</a></li>
-                <?php else: ?>
-                    <li><a href="index.php">Sign In</a></li>
-                    <li><a href="signup.php">Sign Up</a></li>
-                <?php endif; ?>
-            </ul>
-        </nav>
-    </header>
-
-    <main>
-        <div class="refund-container">
-            <h1>Refund Request</h1>
-
-            <?php if ($message): ?>
-                <p class="message"><?php echo htmlspecialchars($message); ?></p>
-            <?php endif; ?>
-            <?php if ($error): ?>
-                <p class="error"><?php echo htmlspecialchars($error); ?></p>
-            <?php endif; ?>
-
-            <?php if ($booking_details): ?>
-                <h2>Booking Details</h2>
-                <div class="refund-details">
-                    <p><strong>Booking ID:</strong> <?php echo htmlspecialchars($booking_details['booking_id']); ?></p>
-                    <p><strong>Customer:</strong> <?php echo htmlspecialchars($booking_details['username']); ?></p>
-                    <p><strong>Destination:</strong> <?php echo htmlspecialchars($booking_details['destination_name']); ?></p>
-                    <p><strong>Total Price:</strong> $<?php echo htmlspecialchars(number_format($booking_details['total_price'], 2)); ?></p>
-                    <p><strong>Current Status:</strong> <?php echo htmlspecialchars($booking_details['status']); ?></p>
-                    <p><strong>Transaction ID:</strong> <?php echo htmlspecialchars($booking_details['transaction_id'] ?? 'N/A'); ?></p>
-                </div>
-
-                <?php if ($booking_details['status'] === 'Refunded'): ?>
-                    <p style="text-align: center; color: green; font-weight: bold;">This booking has already been successfully refunded.</p>
-                <?php elseif ($booking_details['status'] === 'Refund Requested'): ?>
-                    <p style="text-align: center; color: orange; font-weight: bold;">A refund for this booking is already under review.</p>
-                <?php else: // Can request refund if not already refunded or requested ?>
-                    <form action="refund.php?booking_id=<?php echo htmlspecialchars($booking_id); ?>" method="POST">
-                        <input type="hidden" name="request_refund" value="1">
-                        <button type="submit" class="refund-button" onclick="return confirm('Are you sure you want to request a refund for this booking?');">
-                            <?php echo $is_admin ? 'Process Refund' : 'Request Refund'; ?>
-                        </button>
-                    </form>
-                    <p style="text-align: center; margin-top: 15px; font-size: 0.9em; color: #777;">Refunds are subject to terms and conditions.</p>
-                <?php endif; ?>
-
-            <?php else: ?>
-                <p style="text-align: center;">Please provide a valid booking ID to initiate a refund request.</p>
-                <?php if ($is_admin): ?>
-                    <p style="text-align: center;"><a href="admin_op.php?action=manage_bookings">Back to Manage Bookings</a></p>
-                <?php endif; ?>
-            <?php endif; ?>
-        </div>
-    </main>
-
-    <footer>
-        <p>&copy; 2023 Traveler. All rights reserved.</p>
-    </footer>
-</body>
-</html>

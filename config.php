@@ -1,21 +1,22 @@
 <?php
-// Existing config values would be here.
-// Adding database connection details as per project requirements.
 
-// Ensure these are defined. Replace with your actual credentials.
-if (!defined('DB_SERVER')) {
-    define('DB_SERVER', 'localhost');
-}
-if (!defined('DB_USERNAME')) {
-    define('DB_USERNAME', 'root'); // Your database username
-}
-if (!defined('DB_PASSWORD')) {
-    define('DB_PASSWORD', '');     // Your database password
-}
-if (!defined('DB_NAME')) {
-    define('DB_NAME', 'travel');   // Your database name
-}
+// Database connection parameters
+define('DB_SERVER', 'localhost');
+define('DB_USERNAME', 'root');
+define('DB_PASSWORD', '');
+define('DB_NAME', 'travel');
 
-// You might have other configurations here as well.
-// For example, base URL, constants, etc.
+// Stripe API Keys
+// IMPORTANT: Replace with your actual Stripe Publishable and Secret keys
+// For development/testing, use test keys. For production, use live keys.
+define('STRIPE_PUBLISHABLE_KEY', 'pk_test_YOUR_STRIPE_PUBLISHABLE_KEY'); 
+define('STRIPE_SECRET_KEY', 'sk_test_YOUR_STRIPE_SECRET_KEY');
+
+// Stripe Webhook Secret (for verifying webhook signatures)
+define('STRIPE_WEBHOOK_SECRET', 'whsec_YOUR_STRIPE_WEBHOOK_SECRET');
+
+// Other configuration constants can go here
+// Example: Pagination limits, currency, etc.
+define('DEFAULT_CURRENCY', 'usd');
+
 ?>
