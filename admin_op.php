@@ -1,273 +1,349 @@
 <?php
 session_start();
+include 'db_connection.php';
 
-// Check if user is logged in and is an admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    $_SESSION['error'] = "Access denied. You must be logged in as an administrator to perform admin operations.";
-    header("Location: index.php");
+    header('Location: signin.php');
     exit();
 }
 
-require_once 'db_connection.php';
-
-$action = $_GET['action'] ?? '';
+$action = $_POST['action'] ?? '';
 $message = '';
-$error = '';
 
-// --- Function to sanitize input (basic example) ---
-function sanitize_input($data) {
-    return htmlspecialchars(strip_tags(trim($data)));
-}
-
-// --- Handle Admin Operations ---
 switch ($action) {
-    case 'manage_users':
-        // Example: Display users, allow edit/delete
-        $users = [];
-        $query = "SELECT customer_id, username, email, role, phone FROM customer";
-        $result = $conn->query($query);
-        if ($result) {
-            while ($row = $result->fetch_assoc()) {
-                $users[] = $row;
-            }
-        } else {
-            $error = "Error fetching users: " . $conn->error;
-        }
-        break;
-    case 'edit_user':
-        // Example: Edit user details
-        $user_id = sanitize_input($_GET['id'] ?? '');
-        if (!empty($user_id) && is_numeric($user_id)) {
-            if ($_SERVER["REQUEST_METHOD"] == "POST") {
-                // Process update form
-                $new_username = sanitize_input($_POST['username']);
-                $new_email = sanitize_input($_POST['email']);
-                $new_role = sanitize_input($_POST['role']);
+    // --- Destination CRUD --- 
+    case 'add_destination':
+        $name = $conn->real_escape_string($_POST['name']);
+        $description = $conn->real_escape_string($_POST['description']);
+        $price = filter_var($_POST['price'], FILTER_VALIDATE_FLOAT);
+        $image_url = $conn->real_escape_string($_POST['image_url']);
 
-                $stmt = $conn->prepare("UPDATE customer SET username = ?, email = ?, role = ? WHERE customer_id = ?");
-                $stmt->bind_param("sssi", $new_username, $new_email, $new_role, $user_id);
-                if ($stmt->execute()) {
-                    $message = "User updated successfully!";
-                } else {
-                    $error = "Failed to update user: " . $stmt->error;
-                }
-                $stmt->close();
-            } else {
-                // Fetch user data for edit form
-                $stmt = $conn->prepare("SELECT customer_id, username, email, role, phone FROM customer WHERE customer_id = ?");
-                $stmt->bind_param("i", $user_id);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                $user_to_edit = $result->fetch_assoc();
-                $stmt->close();
-            }
-        }
-        break;
-    case 'delete_user':
-        $user_id = sanitize_input($_GET['id'] ?? '');
-        if (!empty($user_id) && is_numeric($user_id)) {
-            $stmt = $conn->prepare("DELETE FROM customer WHERE customer_id = ?");
-            $stmt->bind_param("i", $user_id);
+        if ($price === false || $price < 0) {
+            $message = 'Invalid price.';
+        } else {
+            $stmt = $conn->prepare("INSERT INTO destination (name, description, price, image_url) VALUES (?, ?, ?, ?)");
+            $stmt->bind_param("ssds", $name, $description, $price, $image_url);
             if ($stmt->execute()) {
-                $message = "User deleted successfully!";
+                $message = 'Destination added successfully.';
             } else {
-                $error = "Failed to delete user: " . $stmt->error;
+                $message = 'Error adding destination: ' . $stmt->error;
             }
             $stmt->close();
         }
-        header("Location: admin_op.php?action=manage_users");
+        header('Location: admin.php?view=destinations&message=' . urlencode($message));
         exit();
-        break;
-    case 'manage_bookings':
-        // Logic for managing bookings
-        $bookings = [];
-        $query = "SELECT b.booking_id, c.username, d.destination_name, b.booking_date, b.status FROM booking b JOIN customer c ON b.customer_id = c.customer_id JOIN destination d ON b.destination_id = d.destination_id";
-        $result = $conn->query($query);
-        if ($result) {
-            while ($row = $result->fetch_assoc()) {
-                $bookings[] = $row;
-            }
+
+    case 'edit_destination':
+        $id = filter_var($_POST['destination_id'], FILTER_VALIDATE_INT);
+        $name = $conn->real_escape_string($_POST['name']);
+        $description = $conn->real_escape_string($_POST['description']);
+        $price = filter_var($_POST['price'], FILTER_VALIDATE_FLOAT);
+        $image_url = $conn->real_escape_string($_POST['image_url']);
+
+        if ($id === false || $id <= 0 || $price === false || $price < 0) {
+            $message = 'Invalid ID or price.';
         } else {
-            $error = "Error fetching bookings: " . $conn->error;
-        }
-        break;
-    case 'manage_destinations':
-        // Logic for managing destinations
-        $destinations = [];
-        $query = "SELECT destination_id, destination_name, location, price FROM destination";
-        $result = $conn->query($query);
-        if ($result) {
-            while ($row = $result->fetch_assoc()) {
-                $destinations[] = $row;
+            $stmt = $conn->prepare("UPDATE destination SET name=?, description=?, price=?, image_url=? WHERE destination_id=?");
+            $stmt->bind_param("ssdsi", $name, $description, $price, $image_url, $id);
+            if ($stmt->execute()) {
+                $message = 'Destination updated successfully.';
+            } else {
+                $message = 'Error updating destination: ' . $stmt->error;
             }
-        } else {
-            $error = "Error fetching destinations: " . $conn->error;
+            $stmt->close();
         }
-        break;
+        header('Location: admin.php?view=destinations&message=' . urlencode($message));
+        exit();
+
+    case 'delete_destination':
+        $id = filter_var($_POST['destination_id'], FILTER_VALIDATE_INT);
+        if ($id === false || $id <= 0) {
+            $message = 'Invalid ID.';
+        } else {
+            $stmt = $conn->prepare("DELETE FROM destination WHERE destination_id=?");
+            $stmt->bind_param("i", $id);
+            if ($stmt->execute()) {
+                $message = 'Destination deleted successfully.';
+            } else {
+                $message = 'Error deleting destination: ' . $stmt->error;
+            }
+            $stmt->close();
+        }
+        header('Location: admin.php?view=destinations&message=' . urlencode($message));
+        exit();
+
+    // --- Hotel CRUD --- 
+    case 'add_hotel':
+        $name = $conn->real_escape_string($_POST['name']);
+        $location = $conn->real_escape_string($_POST['location']);
+        $description = $conn->real_escape_string($_POST['description'] ?? '');
+        $image_url = $conn->real_escape_string($_POST['image_url'] ?? '');
+
+        if (empty($name) || empty($location)) {
+            $message = 'Hotel name and location are required.';
+        } else {
+            $stmt = $conn->prepare("INSERT INTO hotels (name, location, description, image_url) VALUES (?, ?, ?, ?)");
+            $stmt->bind_param("ssss", $name, $location, $description, $image_url);
+            if ($stmt->execute()) {
+                $message = 'Hotel added successfully.';
+            } else {
+                $message = 'Error adding hotel: ' . $stmt->error;
+            }
+            $stmt->close();
+        }
+        header('Location: admin.php?view=hotels&message=' . urlencode($message));
+        exit();
+
+    case 'edit_hotel':
+        $id = filter_var($_POST['hotel_id'], FILTER_VALIDATE_INT);
+        $name = $conn->real_escape_string($_POST['name']);
+        $location = $conn->real_escape_string($_POST['location']);
+        $description = $conn->real_escape_string($_POST['description'] ?? '');
+        $image_url = $conn->real_escape_string($_POST['image_url'] ?? '');
+
+        if ($id === false || $id <= 0 || empty($name) || empty($location)) {
+            $message = 'Invalid ID, name, or location.';
+        } else {
+            $stmt = $conn->prepare("UPDATE hotels SET name=?, location=?, description=?, image_url=? WHERE hotel_id=?");
+            $stmt->bind_param("ssssi", $name, $location, $description, $image_url, $id);
+            if ($stmt->execute()) {
+                $message = 'Hotel updated successfully.';
+            } else {
+                $message = 'Error updating hotel: ' . $stmt->error;
+            }
+            $stmt->close();
+        }
+        header('Location: admin.php?view=hotels&message=' . urlencode($message));
+        exit();
+
+    case 'delete_hotel':
+        $id = filter_var($_POST['hotel_id'], FILTER_VALIDATE_INT);
+        if ($id === false || $id <= 0) {
+            $message = 'Invalid ID.';
+        } else {
+            $stmt = $conn->prepare("DELETE FROM hotels WHERE hotel_id=?");
+            $stmt->bind_param("i", $id);
+            if ($stmt->execute()) {
+                $message = 'Hotel deleted successfully.';
+            } else {
+                $message = 'Error deleting hotel: ' . $stmt->error;
+            }
+            $stmt->close();
+        }
+        header('Location: admin.php?view=hotels&message=' . urlencode($message));
+        exit();
+
+    // --- Hotel Room CRUD --- 
+    case 'add_hotel_room':
+        $hotel_id = filter_var($_POST['hotel_id'], FILTER_VALIDATE_INT);
+        $room_type = $conn->real_escape_string($_POST['room_type']);
+        $capacity = filter_var($_POST['capacity'], FILTER_VALIDATE_INT);
+        $price_per_night = filter_var($_POST['price_per_night'], FILTER_VALIDATE_FLOAT);
+        $num_rooms_available = filter_var($_POST['num_rooms_available'], FILTER_VALIDATE_INT);
+        $description = $conn->real_escape_string($_POST['description'] ?? '');
+        $image_url = $conn->real_escape_string($_POST['image_url'] ?? '');
+
+        if ($hotel_id === false || $hotel_id <= 0 || empty($room_type) || $capacity === false || $capacity <= 0 || $price_per_night === false || $price_per_night < 0 || $num_rooms_available === false || $num_rooms_available < 0) {
+            $message = 'Invalid input for hotel room.';
+        } else {
+            $stmt = $conn->prepare("INSERT INTO hotel_rooms (hotel_id, room_type, capacity, price_per_night, num_rooms_available, description, image_url) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("isidiss", $hotel_id, $room_type, $capacity, $price_per_night, $num_rooms_available, $description, $image_url);
+            if ($stmt->execute()) {
+                $message = 'Hotel room added successfully.';
+            } else {
+                $message = 'Error adding hotel room: ' . $stmt->error;
+            }
+            $stmt->close();
+        }
+        header('Location: admin.php?view=hotel_rooms&message=' . urlencode($message));
+        exit();
+
+    case 'edit_hotel_room':
+        $room_id = filter_var($_POST['room_id'], FILTER_VALIDATE_INT);
+        $hotel_id = filter_var($_POST['hotel_id'], FILTER_VALIDATE_INT);
+        $room_type = $conn->real_escape_string($_POST['room_type']);
+        $capacity = filter_var($_POST['capacity'], FILTER_VALIDATE_INT);
+        $price_per_night = filter_var($_POST['price_per_night'], FILTER_VALIDATE_FLOAT);
+        $num_rooms_available = filter_var($_POST['num_rooms_available'], FILTER_VALIDATE_INT);
+        $description = $conn->real_escape_string($_POST['description'] ?? '');
+        $image_url = $conn->real_escape_string($_POST['image_url'] ?? '');
+
+        if ($room_id === false || $room_id <= 0 || $hotel_id === false || $hotel_id <= 0 || empty($room_type) || $capacity === false || $capacity <= 0 || $price_per_night === false || $price_per_night < 0 || $num_rooms_available === false || $num_rooms_available < 0) {
+            $message = 'Invalid input for hotel room.';
+        } else {
+            $stmt = $conn->prepare("UPDATE hotel_rooms SET hotel_id=?, room_type=?, capacity=?, price_per_night=?, num_rooms_available=?, description=?, image_url=? WHERE room_id=?");
+            $stmt->bind_param("isidissi", $hotel_id, $room_type, $capacity, $price_per_night, $num_rooms_available, $description, $image_url, $room_id);
+            if ($stmt->execute()) {
+                $message = 'Hotel room updated successfully.';
+            } else {
+                $message = 'Error updating hotel room: ' . $stmt->error;
+            }
+            $stmt->close();
+        }
+        header('Location: admin.php?view=hotel_rooms&message=' . urlencode($message));
+        exit();
+
+    case 'delete_hotel_room':
+        $room_id = filter_var($_POST['room_id'], FILTER_VALIDATE_INT);
+        if ($room_id === false || $room_id <= 0) {
+            $message = 'Invalid ID.';
+        } else {
+            $stmt = $conn->prepare("DELETE FROM hotel_rooms WHERE room_id=?");
+            $stmt->bind_param("i", $room_id);
+            if ($stmt->execute()) {
+                $message = 'Hotel room deleted successfully.';
+            } else {
+                $message = 'Error deleting hotel room: ' . $stmt->error;
+            }
+            $stmt->close();
+        }
+        header('Location: admin.php?view=hotel_rooms&message=' . urlencode($message));
+        exit();
+
+    // --- User CRUD --- 
+    case 'add_user': // Admin can add users (optional)
+        $username = $conn->real_escape_string($_POST['username']);
+        $email = $conn->real_escape_string($_POST['email']);
+        $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+        $role = $_POST['role'] === 'admin' ? 'admin' : 'user';
+
+        if (empty($username) || empty($email) || empty($_POST['password'])) {
+            $message = 'All fields are required for adding a user.';
+        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $message = 'Invalid email format.';
+        } else {
+            $stmt = $conn->prepare("INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)");
+            $stmt->bind_param("ssss", $username, $email, $password, $role);
+            if ($stmt->execute()) {
+                $message = 'User added successfully.';
+            } else {
+                $message = 'Error adding user: ' . $stmt->error;
+            }
+            $stmt->close();
+        }
+        header('Location: admin.php?view=users&message=' . urlencode($message));
+        exit();
+
+    case 'edit_user':
+        $user_id = filter_var($_POST['user_id'], FILTER_VALIDATE_INT);
+        $username = $conn->real_escape_string($_POST['username']);
+        $email = $conn->real_escape_string($_POST['email']);
+        $password = $_POST['password'] ?? '';
+        $role = $_POST['role'] === 'admin' ? 'admin' : 'user';
+
+        if ($user_id === false || $user_id <= 0 || empty($username) || empty($email)) {
+            $message = 'Invalid User ID or missing fields.';
+        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $message = 'Invalid email format.';
+        } else {
+            $sql_parts = [];
+            $params = [];
+            $types = '';
+
+            $sql_parts[] = "username=?";
+            $params[] = $username;
+            $types .= 's';
+
+            $sql_parts[] = "email=?";
+            $params[] = $email;
+            $types .= 's';
+
+            $sql_parts[] = "role=?";
+            $params[] = $role;
+            $types .= 's';
+
+            if (!empty($password)) {
+                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                $sql_parts[] = "password=?";
+                $params[] = $hashed_password;
+                $types .= 's';
+            }
+            
+            $params[] = $user_id;
+            $types .= 'i';
+
+            $sql = "UPDATE users SET " . implode(', ', $sql_parts) . " WHERE user_id=?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param($types, ...$params);
+
+            if ($stmt->execute()) {
+                $message = 'User updated successfully.';
+            } else {
+                $message = 'Error updating user: ' . $stmt->error;
+            }
+            $stmt->close();
+        }
+        header('Location: admin.php?view=users&message=' . urlencode($message));
+        exit();
+
+    case 'delete_user':
+        $user_id = filter_var($_POST['user_id'], FILTER_VALIDATE_INT);
+        if ($user_id === false || $user_id <= 0) {
+            $message = 'Invalid User ID.';
+        } else {
+            // Prevent admin from deleting themselves if needed, or other critical users
+            if ($user_id == $_SESSION['user_id']) {
+                $message = 'You cannot delete your own admin account.';
+            } else {
+                $stmt = $conn->prepare("DELETE FROM users WHERE user_id=?");
+                $stmt->bind_param("i", $user_id);
+                if ($stmt->execute()) {
+                    $message = 'User deleted successfully.';
+                } else {
+                    $message = 'Error deleting user: ' . $stmt->error;
+                }
+                $stmt->close();
+            }
+        }
+        header('Location: admin.php?view=users&message=' . urlencode($message));
+        exit();
+
+    // --- Booking Status Updates --- 
+    case 'update_booking_status':
+        $booking_id = filter_var($_POST['booking_id'], FILTER_VALIDATE_INT);
+        $status = $_POST['status'] ?? '';
+        $allowed_statuses = ['pending', 'confirmed', 'cancelled', 'completed'];
+
+        if ($booking_id === false || $booking_id <= 0 || !in_array($status, $allowed_statuses)) {
+            $message = 'Invalid booking ID or status.';
+        } else {
+            $stmt = $conn->prepare("UPDATE booking SET status=? WHERE booking_id=?");
+            $stmt->bind_param("si", $status, $booking_id);
+            if ($stmt->execute()) {
+                $message = 'Booking status updated.';
+            } else {
+                $message = 'Error updating booking status: ' . $stmt->error;
+            }
+            $stmt->close();
+        }
+        header('Location: admin.php?view=bookings&message=' . urlencode($message));
+        exit();
+
+    case 'update_hotel_booking_status':
+        $hotel_booking_id = filter_var($_POST['hotel_booking_id'], FILTER_VALIDATE_INT);
+        $status = $_POST['status'] ?? '';
+        $allowed_statuses = ['pending', 'confirmed', 'cancelled', 'completed'];
+
+        if ($hotel_booking_id === false || $hotel_booking_id <= 0 || !in_array($status, $allowed_statuses)) {
+            $message = 'Invalid hotel booking ID or status.';
+        } else {
+            $stmt = $conn->prepare("UPDATE hotel_bookings SET booking_status=? WHERE hotel_booking_id=?");
+            $stmt->bind_param("si", $status, $hotel_booking_id);
+            if ($stmt->execute()) {
+                $message = 'Hotel booking status updated.';
+            } else {
+                $message = 'Error updating hotel booking status: ' . $stmt->error;
+            }
+            $stmt->close();
+        }
+        header('Location: admin.php?view=hotel_bookings&message=' . urlencode($message));
+        exit();
+
     default:
-        $error = "Invalid admin operation.";
-        break;
+        $message = 'Unknown action.';
+        header('Location: admin.php?message=' . urlencode($message));
+        exit();
 }
 
 $conn->close();
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Operations</title>
-    <link rel="stylesheet" href="css/admin.css">
-    <style>
-        .message { color: green; font-weight: bold; margin-bottom: 10px; }
-        .error { color: red; font-weight: bold; margin-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        .actions a { margin-right: 5px; text-decoration: none; }
-    </style>
-</head>
-<body>
-    <header>
-        <h1>Admin Operations</h1>
-        <nav>
-            <ul>
-                <li><a href="admin.php">Admin Dashboard</a></li>
-                <li><a href="admin_op.php?action=manage_users">Manage Users</a></li>
-                <li><a href="admin_op.php?action=manage_bookings">Manage Bookings</a></li>
-                <li><a href="admin_op.php?action=manage_destinations">Manage Destinations</a></li>
-                <li><a href="logout.php">Logout</a></li>
-            </ul>
-        </nav>
-    </header>
-    <main>
-        <h2><?php echo ucwords(str_replace('_', ' ', $action)); ?></h2>
-
-        <?php if (!empty($message)): ?>
-            <div class="message"><?php echo htmlspecialchars($message); ?></div>
-        <?php endif; ?>
-        <?php if (!empty($error)): ?>
-            <div class="error"><?php echo htmlspecialchars($error); ?></div>
-        <?php endif; ?>
-
-        <?php if ($action == 'manage_users' && isset($users)): ?>
-            <h3>User List</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Username</th>
-                        <th>Email</th>
-                        <th>Role</th>
-                        <th>Phone</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (count($users) > 0): ?>
-                        <?php foreach ($users as $user): ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars($user['customer_id']); ?></td>
-                                <td><?php echo htmlspecialchars($user['username']); ?></td>
-                                <td><?php echo htmlspecialchars($user['email']); ?></td>
-                                <td><?php echo htmlspecialchars($user['role']); ?></td>
-                                <td><?php echo htmlspecialchars($user['phone']); ?></td>
-                                <td class="actions">
-                                    <a href="admin_op.php?action=edit_user&id=<?php echo htmlspecialchars($user['customer_id']); ?>">Edit</a>
-                                    <a href="admin_op.php?action=delete_user&id=<?php echo htmlspecialchars($user['customer_id']); ?>" onclick="return confirm('Are you sure you want to delete this user?');">Delete</a>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr><td colspan="6">No users found.</td></tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        <?php elseif ($action == 'edit_user' && isset($user_to_edit)): ?>
-            <h3>Edit User: <?php echo htmlspecialchars($user_to_edit['username']); ?></h3>
-            <form action="admin_op.php?action=edit_user&id=<?php echo htmlspecialchars($user_to_edit['customer_id']); ?>" method="POST">
-                <label for="username">Username:</label><br>
-                <input type="text" id="username" name="username" value="<?php echo htmlspecialchars($user_to_edit['username']); ?>" required><br><br>
-
-                <label for="email">Email:</label><br>
-                <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($user_to_edit['email']); ?>" required><br><br>
-
-                <label for="role">Role:</label><br>
-                <select id="role" name="role">
-                    <option value="user" <?php echo ($user_to_edit['role'] == 'user') ? 'selected' : ''; ?>>User</option>
-                    <option value="admin" <?php echo ($user_to_edit['role'] == 'admin') ? 'selected' : ''; ?>>Admin</option>
-                </select><br><br>
-
-                <input type="submit" value="Update User">
-            </form>
-        <?php elseif ($action == 'manage_bookings' && isset($bookings)): ?>
-            <h3>Booking List</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Booking ID</th>
-                        <th>Customer Username</th>
-                        <th>Destination</th>
-                        <th>Booking Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (count($bookings) > 0): ?>
-                        <?php foreach ($bookings as $booking): ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars($booking['booking_id']); ?></td>
-                                <td><?php echo htmlspecialchars($booking['username']); ?></td>
-                                <td><?php echo htmlspecialchars($booking['destination_name']); ?></td>
-                                <td><?php echo htmlspecialchars($booking['booking_date']); ?></td>
-                                <td><?php echo htmlspecialchars($booking['status']); ?></td>
-                                <td class="actions">
-                                    <!-- Add edit/delete/view booking actions here -->
-                                    <a href="#">View</a> | <a href="#">Edit</a> | <a href="#">Delete</a>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr><td colspan="6">No bookings found.</td></tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        <?php elseif ($action == 'manage_destinations' && isset($destinations)): ?>
-            <h3>Destination List</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Location</th>
-                        <th>Price</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (count($destinations) > 0): ?>
-                        <?php foreach ($destinations as $destination): ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars($destination['destination_id']); ?></td>
-                                <td><?php echo htmlspecialchars($destination['destination_name']); ?></td>
-                                <td><?php echo htmlspecialchars($destination['location']); ?></td>
-                                <td><?php echo htmlspecialchars($destination['price']); ?></td>
-                                <td class="actions">
-                                    <!-- Add edit/delete/view destination actions here -->
-                                    <a href="#">View</a> | <a href="#">Edit</a> | <a href="#">Delete</a>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr><td colspan="5">No destinations found.</td></tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        <?php endif; ?>
-    </main>
-    <footer>
-        <p>&copy; <?php echo date('Y'); ?> Traveler Admin Operations. All rights reserved.</p>
-    </footer>
-</body>
-</html>
