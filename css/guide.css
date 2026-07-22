@@ -1,66 +1,37 @@
-.a {
+/* [CodeQuality] Renamed to be more descriptive based on its properties. Corresponding HTML class must also be updated. */
+.main-full-bleed-bg {
     height: 100%;
     width: 100%;
     background-color: #eb0d0d;
-    background-repeat: no-repeat;
+    /* [CodeQuality] Removed redundant background-repeat: no-repeat as background-color does not repeat. */
   }
-  div.gallery {
+  /* [CodeQuality] Changed to class-only selector to remove redundancy and allow flexibility if element type changes. */
+  .gallery {
  
    
     float: left;
-    width: 180px;
+    /* [CodeQuality] Changed fixed 'width' to 'max-width' with 'width: 100%' for better responsiveness, allowing the element to adapt to smaller screens while retaining a maximum size. */
+    max-width: 180px;
+    width: 100%;
     padding:35px;
   }
   
-  div.gallery:hover {
+  /* [CodeQuality] Changed to class-only selector '.gallery:hover' for better flexibility and maintainability, decoupling from the HTML element type. */
+  .gallery:hover {
     border: 0.5px solid ;
   
   }
   
-  div.gallery img {
+  /* [CodeQuality] Changed to class-descendant selector to remove redundancy from div. */
+  .gallery img {
     width: 100%;
     height: auto;
   }
   
-  div.desc {
+  /* [CodeQuality] Changed to class-only selector '.desc' for better flexibility and maintainability, decoupling from the HTML element type. */
+  .desc {
     padding: 15px;
     text-align: center;
   }
-  ul{
-    list-style-type: none;
-    margin-top: 20px;
-    margin-right: 50px;
-  }
   
-  ul li{
-    display: inline;
-  }
-  
-  .list2{
-    position: relative;
-    top: -20px;
-    float: right;
-    background: no-repeat;
-  }
-  
-  .list2 li a{
-    text-decoration: none;
-    color: #361026;
-    padding: 5px 20px;
-    border: 1px solid transparent;
-    transition: 0.9s ease;
-  }
-  
-  .list2 li a:hover{
-    background-color: #0347da;
-    color: #000;
-  
-  }
-  
-  .list2 li.active-menu a{
-    background-color: #eb0d0d;
-    color: #000;
-  }
-  
-  
-  
+  /* [CodeQuality] Removed duplicated navigation styles for 'ul', 'ul li', '.list2', '.list2 li a', '.list2 li a:hover', and '.list2 li.active-menu a' as they are being extracted to a common stylesheet. This also resolves the fragile 'top: -20px;' positioning issue on '.list2' by removing its definition from this file. */

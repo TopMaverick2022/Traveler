@@ -12,7 +12,8 @@ body {
     margin: 20px auto;
     padding: 20px;
     background-color: #fff;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    /* Fix: Optimized box-shadow for performance by slightly reducing blur and opacity. */
+    box-shadow: 0 0 8px rgba(0,0,0,0.08);
     border-radius: 8px;
 }
 
@@ -101,9 +102,10 @@ h1, h2, h3 {
     margin-bottom: 20px;
 }
 
+/* Fix: Changed grid-template-columns to `1fr auto` for `.hotel-info`. This allows the second column (`.room-types`) to size based on its content, making the layout more adaptable to varying content lengths rather than a fixed ratio. */
 .hotel-info {
     display: grid;
-    grid-template-columns: 1fr 2fr; /* Adjust as needed */
+    grid-template-columns: 1fr auto;
     gap: 30px;
     margin-bottom: 30px;
 }
@@ -179,7 +181,10 @@ h1, h2, h3 {
 .booking-form input[type="date"],
 .booking-form input[type="number"],
 .booking-form select {
-    width: calc(100% - 22px);
+    /* Fix: Applied `box-sizing: border-box;` to simplify width calculation. */
+    box-sizing: border-box;
+    /* Fix: Simplified width to 100% since `box-sizing: border-box;` now correctly accounts for padding and border. */
+    width: 100%;
     padding: 10px;
     margin-bottom: 15px;
     border: 1px solid #ddd;
@@ -191,7 +196,8 @@ h1, h2, h3 {
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
-    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007bff%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13.2-5.4H18.6c-5%200-9.3%201.8-13.2%205.4A17.6%2017.6%200%200%0a0%200%2082.7L132.8%20224c3.9%203.8%208.2%205.7%2013.2%205.7s9.3-1.9%2013.2-5.7L287%2082.7c3.9-3.8%205.4-8.5%205.4-13.3z%22%2F%3E%3C%2Fsvg%3E');
+    /* Fix: Added a custom SVG background-image for a visual arrow, improving accessibility and user experience after removing default appearance. */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23555' d='M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 10px top 50%;
     background-size: 12px;
@@ -208,6 +214,8 @@ h1, h2, h3 {
     font-size: 1.1em;
     transition: background-color 0.3s ease;
     width: 100%;
+    /* Fix: Added `box-sizing: border-box` to prevent `button[type="submit"]` from exceeding container width when combined with padding and `width: 100%`. This ensures padding is included within the element's total width. */
+    box-sizing: border-box;
 }
 
 .booking-form button[type="submit"]:hover {
@@ -248,4 +256,3 @@ h1, h2, h3 {
         width: 100%;
     }
 }
-

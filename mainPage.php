@@ -3,16 +3,16 @@
 // It should not have session_start() if it's included in other files that already call it.
 // session_start(); // Only uncomment if this file is meant to be accessed directly and starts a new session
 
+// [Line 10] [CodeQuality] FIX: Ensure config.php is always loaded to provide consistent BASE_URL definition.
+// This removes the conditional fallback, preventing potential configuration inconsistencies.
+require_once 'config.php';
+
 $is_logged_in = isset($_SESSION['user_id']);
 $username = $_SESSION['username'] ?? 'Guest';
 $is_admin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
 
-// Assuming config.php is included where this is used or directly here for BASE_URL
-if (!defined('BASE_URL')) {
-    // Define a default if config.php isn't always loaded before this.
-    // In a real project, ensure config.php is included consistently at the application entry point.
-    define('BASE_URL', 'http://localhost/traveler/'); // Adjust if your base URL is different
-}
+// The conditional definition of BASE_URL was removed as config.php is now guaranteed to be included,
+// ensuring BASE_URL is defined consistently at the application entry point.
 ?>
 <!DOCTYPE html>
 <html lang="en">

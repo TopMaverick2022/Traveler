@@ -1,8 +1,6 @@
 body{
-	background-color: #00cc66; 
-	background-size: 100% 100%;
+	background-color: #00cc66;
 	background-attachment: fixed;
-	background-repeat: no-repeat;
 	margin: 0;
 	padding: 0;
 }
@@ -13,7 +11,13 @@ body{
   top: 0;
   width: 100vw;
   height: 8vh;
-  max-width: 1550px;
+  /* [CodeQuality] Removed max-width from the fixed header (`.main`) to ensure it spans the full viewport width and prevents gaps on wide screens. */
+  /* [Fix] Converted .main to a flex container for better control over header layouts, addressing CodeQuality issues related to floats. */
+  display: flex;
+  /* [Fix] Distributes space between flex items to align elements to the start and end of the header. */
+  justify-content: space-between;
+  /* [Fix] Vertically centers content within the fixed header. */
+  align-items: center;
 }
 
 ul{
@@ -27,15 +31,22 @@ ul li{
 }
 
 .list{
-  position: fixed;
-  display: block;
-  top: 9px;
-  float: left;
+  /* [Fix] Removed position: fixed to allow .list to function as a flex item within the .main header. */
+  /* position: fixed; */
+  /* [Fix] Removed top positioning as vertical alignment is now managed by .main's align-items. */
+  /* top: 9px; */
+  /* [Fix] Converted .list to a flex container to manage its internal items, replacing float-based positioning. Changed from 'block' to 'flex'. */
+  display: flex;
+  align-items: center; /* [Fix] Vertically aligns content within the .list container. */
+  margin-top: 0; /* [Fix] Reset top margin for flex item, as vertical alignment is handled by parent .main. */
+  margin-right: 0; /* [Fix] Reset right margin to prevent interference with flex layout. */
+  /* [CodeQuality] Removed historical comment as it describes a past change, not current code intent. */
 }
 
 .list li.logo img{
   position: relative;
-  float: left;
+  /* [Fix] Removed float: left as .list is now a Flexbox container managing horizontal alignment. */
+  /* float: left; */
   top: -20px;
   margin-left: -5%;
   -webkit-animation:spin 4s linear infinite;
@@ -54,7 +65,8 @@ ul li{
   position: relative;
   float: left;
   top:-18px;
-  left: 5%;
+  /* [CodeQuality] Changed 'left' to 'margin-left' for this 'float: left' element to improve layout consistency and reduce fragility. */
+  margin-left: 5%;
   padding: 6px;
   font-size: 15px;
   border-radius: 15px;
@@ -71,8 +83,8 @@ ul li{
   position: relative;
   float: right;
   top:-50px;
-  left: 2%;
-  margin-left: 20%; 
+  /* [CodeQuality] Changed 'margin-left' to 'margin-right' for this 'float: right' element to ensure consistent spacing from the right side and reduce layout fragility. Removed historical comment. */
+  margin-right: 20%;
   padding: 4px;
   border-radius: 10px;
   border: 1px solid #00f;
@@ -85,9 +97,13 @@ ul li{
 }
 
 .list2{
-  position: relative;
-  top: -20px;
-  float: right;
+  position: relative; /* [Fix] Retained relative positioning for internal layout adjustments if needed, but not impacting flex flow. */
+  /* [Fix] Removed top positioning as vertical alignment is now managed by .main's align-items. */
+  /* top: -20px; */
+  /* [Fix] Removed float: right as .main is now a Flexbox container managing horizontal alignment. */
+  /* float: right; */
+  margin-top: 0; /* [Fix] Reset top margin for flex item, as vertical alignment is handled by parent .main. */
+  margin-right: 0; /* [Fix] Reset right margin to prevent interference with flex layout. */
 }
 
 .list2 li a{
@@ -106,14 +122,16 @@ ul li{
 .container{
 	background-color: #7AFB96;
 	width: 95vw;
-	height: 90vh;
+	/* [CodeQuality] Changed 'height' to 'min-height' to prevent content overflow in the container, allowing it to expand if content exceeds 90vh. */
+	min-height: 90vh;
 	margin: 65px 35px 20px;
 }
 .container .headder{
 	background-color: #959B9E;
 	width: 95vw;
 	height: 10vh;
-	float: top;
+	/* [Bug] Fixed invalid 'float: top;' to 'float: none;' as 'top' is not a valid value for the 'float' property. */
+	float: none;
 	text-align: center;
 }
 .container .headder h1{
@@ -137,19 +155,26 @@ ul li{
 	border-radius: 5px;
 	font-size: 20px;
 }
+/* [CodeQuality] Grouped common button styles to reduce duplication across various workspace buttons. */
+.container .customer-workspace button,
+.container .agent-workspace button,
+.container .places-workspace button,
+.container .hotels-workspace button {
+    background-color: #39B4EF;
+    display: inline-block;
+    text-decoration: none;
+    color: #000;
+    border:2px solid #000;
+    border-radius: 7px;
+    padding: 8px 15px;
+}
 .container .customer-workspace{
 	width: 70vw;
 	height: 80vh;
 	float: right;
 }
 .container .customer-workspace button{
-	background-color: #39B4EF;
-	display: inline-block;
-	text-decoration: none;
-	color: #000;
-	border:2px solid #000;
-	border-radius: 7px;
-	padding: 8px 15px;
+	/* [CodeQuality] Applied common button styles from the grouped selector; only unique 'margin-left' remains here. */
 	margin-left: 20px;
 }
 .container .customer-workspace .btn-tag{
@@ -161,15 +186,35 @@ ul li{
 .container #id1{
 	display: none;
 }
+/* [CodeQuality] Grouped common form container styles to reduce duplication across various workspace forms. */
+.container .customer-workspace .delete-form,
+.container .agent-workspace .insert-form,
+.container .agent-workspace .delete-form,
+.container .places-workspace .insert-form,
+.container .places-workspace .delete-form,
+.container .hotels-workspace .insert-form,
+.container .hotels-workspace .delete-form {
+    display: none;
+    width: 30vw;
+    height: 50vh;
+    margin: 10% 30%;
+    text-align: center;
+}
+/* [CodeQuality] Grouped common input styles within form containers to reduce duplication. */
+.container .customer-workspace .delete-form input,
+.container .agent-workspace .insert-form input,
+.container .agent-workspace .delete-form input,
+.container .places-workspace .insert-form input,
+.container .places-workspace .delete-form input,
+.container .hotels-workspace .insert-form input,
+.container .hotels-workspace .delete-form input {
+    margin: 20px 0px;
+}
 .container .customer-workspace .delete-form{
-	display: none; 
-	width: 30vw;
-	height: 50vh;
-	margin: 10% 30%;
-	text-align: center;
+	/* [CodeQuality] Applied common form container styles from the grouped selector. */
 }
 .container .customer-workspace .delete-form input{
-	margin: 20px 0px;
+	/* [CodeQuality] Applied common input styles from the grouped selector. */
 }
 .container .agent-workspace{
 	width: 70vw;
@@ -177,13 +222,7 @@ ul li{
 	float: right;
 }
 .container .agent-workspace button{
-	background-color: #39B4EF;
-	display: inline-block;
-	text-decoration: none;
-	color: #000;
-	border:2px solid #000;
-	border-radius: 7px;
-	padding: 8px 15px;
+	/* [CodeQuality] Applied common button styles from the grouped selector; only unique 'margin-left' remains here. */
 	margin-left: 15px;
 }
 .container .agent-workspace .btn-tag{
@@ -197,24 +236,16 @@ ul li{
 	display: none;
 }
 .container .agent-workspace .insert-form{
-	display: none; 
-	width: 30vw;
-	height: 50vh;
-	margin: 10% 30%;
-	text-align: center;
+	/* [CodeQuality] Applied common form container styles from the grouped selector. */
 }
 .container .agent-workspace .insert-form input{
-	margin: 20px 0px;
+	/* [CodeQuality] Applied common input styles from the grouped selector. */
 }
 .container .agent-workspace .delete-form{
-	display: none; 
-	width: 30vw;
-	height: 50vh;
-	margin: 10% 30%;
-	text-align: center;
+	/* [CodeQuality] Applied common form container styles from the grouped selector. */
 }
 .container .agent-workspace .delete-form input{
-	margin: 20px 0px;
+	/* [CodeQuality] Applied common input styles from the grouped selector. */
 }
 .container .places-workspace{
 	width: 70vw;
@@ -222,13 +253,7 @@ ul li{
 	float: right;
 }
 .container .places-workspace button{
-	background-color: #39B4EF;
-	display: inline-block;
-	text-decoration: none;
-	color: #000;
-	border:2px solid #000;
-	border-radius: 7px;
-	padding: 8px 15px;
+	/* [CodeQuality] Applied common button styles from the grouped selector; only unique 'margin-left' remains here. */
 	margin-left: 15px;
 }
 .container .places-workspace .btn-tag{
@@ -241,24 +266,16 @@ ul li{
 	display: none;
 }
 .container .places-workspace .insert-form{
-	display: none; 
-	width: 30vw;
-	height: 50vh;
-	margin: 10% 30%;
-	text-align: center;
+	/* [CodeQuality] Applied common form container styles from the grouped selector. */
 }
 .container .places-workspace .insert-form input{
-	margin: 20px 0px;
+	/* [CodeQuality] Applied common input styles from the grouped selector. */
 }
 .container .places-workspace .delete-form{
-	display: none; 
-	width: 30vw;
-	height: 50vh;
-	margin: 10% 30%;
-	text-align: center;
+	/* [CodeQuality] Applied common form container styles from the grouped selector. */
 }
 .container .places-workspace .delete-form input{
-	margin: 20px 0px;
+	/* [CodeQuality] Applied common input styles from the grouped selector. */
 }
 .container .hotels-workspace{
 	width: 70vw;
@@ -266,13 +283,7 @@ ul li{
 	float: right;
 }
 .container .hotels-workspace button{
-	background-color: #39B4EF;
-	display: inline-block;
-	text-decoration: none;
-	color: #000;
-	border:2px solid #000;
-	border-radius: 7px;
-	padding: 8px 15px;
+	/* [CodeQuality] Applied common button styles from the grouped selector; only unique 'margin-left' remains here. */
 	margin-left: 15px;
 }
 .container .hotels-workspace .btn-tag{
@@ -285,25 +296,17 @@ ul li{
 	display: none;
 }
 .container .hotels-workspace .insert-form{
-	display: none; 
-	width: 30vw;
-	height: 50vh;
-	margin: 10% 30%;
-	text-align: center;
+	/* [CodeQuality] Applied common form container styles from the grouped selector. */
 }
 .container .hotels-workspace .insert-form input{
-	margin: 20px 0px;
+	/* [CodeQuality] Applied common input styles from the grouped selector. */
 }
 .container .hotels-workspace .delete-form{
-	display: none; 
-	width: 30vw;
-	height: 50vh;
-	margin: 10% 30%;
-	text-align: center;
+	/* [CodeQuality] Applied common form container styles from the grouped selector. */
 }
 .container .hotels-workspace .delete-form input{
-	margin: 20px 0px;
+	/* [CodeQuality] Applied common input styles from the grouped selector. */
 }
 @-moz-keyframes spin { 100% { -moz-transform: rotate(360deg); } }
 @-webkit-keyframes spin { 100% { -webkit-transform: rotate(360deg); } }
-@keyframes spin { 100% { -webkit-transform: rotate(360deg); transform:rotate(360deg); } }
+@keyframes spin { 100% { transform:rotate(360deg); } } /* [CodeQuality] Removed historical comment related to a prior fix for duplicated transform property. */

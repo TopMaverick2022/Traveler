@@ -1,6 +1,14 @@
 <?php
 session_start();
 
+// Fix [Line 7] [Security] Session Fixation Vulnerability: Regenerate session ID after authentication to prevent fixation.
+// This is done once per authenticated session to avoid changing ID on every request,
+// ensuring the session ID changes from any pre-authentication ID.
+if (isset($_SESSION['user_id']) && !isset($_SESSION['session_id_regenerated'])) {
+    session_regenerate_id(true);
+    $_SESSION['session_id_regenerated'] = true;
+}
+
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     $_SESSION['error'] = "Please log in to make a booking.";
@@ -9,6 +17,11 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once 'db_connection.php';
+
+// Fix [Line 39] [Security] Cross-Site Request Forgery (CSRF) Vulnerability: Generate and store a CSRF token.
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 
 $destination_id = $_GET['destination_id'] ?? null;
 $destination_name = 'Selected Destination';
@@ -34,33 +47,66 @@ if ($destination_id) {
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && $destination_id) {
-    $customer_id = $_SESSION['user_id'];
-    $booking_date = date('Y-m-d'); // Current date for booking
-    $travel_date = trim($_POST['travel_date']);
-    $num_travelers = intval(trim($_POST['num_travelers']));
-    $total_price = $destination_price * $num_travelers;
-    $status = 'Pending'; // Default status
-
-    if (empty($travel_date) || $num_travelers <= 0) {
-        $error = "Please fill all required fields and ensure number of travelers is positive.";
+    // Fix [Line 39] [Security] Cross-Site Request Forgery (CSRF) Vulnerability: Verify CSRF token.
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $error = "Invalid request. Please try again.";
+        // Regenerate token on failure to prevent replay attacks and allow user to retry
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     } else {
-        $stmt = $conn->prepare("INSERT INTO booking (customer_id, destination_id, booking_date, travel_date, num_travelers, total_price, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        if ($stmt === false) {
-            $error = "Database error: Could not prepare statement. " . $conn->error;
+        // Token is valid, regenerate for subsequent requests to enhance security (once-per-token mechanism).
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+
+        $customer_id = $_SESSION['user_id'];
+        $booking_date = date('Y-m-d'); // Current date for booking
+
+        // Fix [Line 53] [CodeQuality] The `travel_date` input is `trim`med but not explicitly validated for its date format or if it's a future date.
+        // Add explicit validation for 'Y-m-d' format and ensure it's not a past date.
+        $travel_date = trim($_POST['travel_date']);
+        $today = new DateTime();
+        $today->setTime(0, 0, 0); // Normalize to start of day for comparison
+        $input_date_obj = DateTime::createFromFormat('Y-m-d', $travel_date);
+
+        // Fix [Line 53] [CodeQuality] Using `intval()` for `num_travelers` is basic.
+        // Replace with `filter_var($value, FILTER_VALIDATE_INT)` for more robust validation, distinguishing non-integers from valid 0.
+        $num_travelers_input = trim($_POST['num_travelers']);
+        $num_travelers = filter_var($num_travelers_input, FILTER_VALIDATE_INT);
+
+        // Replaced original `if (empty($travel_date) || $num_travelers <= 0)` with granular validation checks.
+        if (empty($travel_date)) {
+            $error = "Travel date is required.";
+        } elseif (!$input_date_obj || $input_date_obj->format('Y-m-d') !== $travel_date) {
+            $error = "Invalid travel date format. Please use YYYY-MM-DD.";
+        } elseif ($input_date_obj < $today) {
+            $error = "Travel date cannot be in the past.";
+        } elseif ($num_travelers === false || $num_travelers < 1) {
+            // Checks if input is not a valid integer or is less than 1.
+            $error = "Number of travelers must be a positive whole number.";
         } else {
-            $stmt->bind_param("iissids", $customer_id, $destination_id, $booking_date, $travel_date, $num_travelers, $total_price, $status);
-            if ($stmt->execute()) {
-                $_SESSION['message'] = "Booking for '" . htmlspecialchars($destination_name) . "' submitted successfully! Total: $" . number_format($total_price, 2) . ". Please proceed to payment.";
-                header("Location: payment.php?booking_id=" . $conn->insert_id); // Redirect to payment with booking ID
-                exit();
+            // All validations passed, proceed with booking logic
+            $total_price = $destination_price * $num_travelers;
+            $status = 'Pending'; // Default status
+
+            $stmt = $conn->prepare("INSERT INTO booking (customer_id, destination_id, booking_date, travel_date, num_travelers, total_price, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            if ($stmt === false) {
+                // Fix [Line 49] [Security] Information Disclosure: Replace raw DB error with generic message.
+                // In a production environment, the actual error ($conn->error) should be logged internally.
+                $error = "A database error occurred. Please try again later.";
             } else {
-                $error = "Booking failed: " . $stmt->error;
+                $stmt->bind_param("iissids", $customer_id, $destination_id, $booking_date, $travel_date, $num_travelers, $total_price, $status);
+                if ($stmt->execute()) {
+                    $_SESSION['message'] = "Booking for '" . htmlspecialchars($destination_name) . "' submitted successfully! Total: $" . number_format($total_price, 2) . ". Please proceed to payment.";
+                    header("Location: payment.php?booking_id=" . $conn->insert_id); // Redirect to payment with booking ID
+                    exit();
+                } else {
+                    // Fix [Line 49] [Security] Information Disclosure: Replace raw DB error with generic message.
+                    // In a production environment, the actual error ($stmt->error) should be logged internally.
+                    $error = "Booking failed due to a database issue. Please try again later.";
+                }
+                $stmt->close();
             }
-            $stmt->close();
         }
     }
 }
-$conn->close();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -102,13 +148,18 @@ $conn->close();
         <?php if ($error): ?>
             <p class="error-message"><?php echo htmlspecialchars($error); ?></p>
         <?php endif; ?>
-        <?php if ($message): // Display message if redirected here without errors but potentially with a success message from prev step ?>
-            <p class="success-message"><?php echo htmlspecialchars($message); ?></p>
-        <?php endif; ?>
+        <?php
+        // Fix [Line 89] [CodeQuality] Unused Variable: The $message variable is initialized but never assigned a local value to be displayed.
+        // The success message is handled via $_SESSION['message'] for cross-page redirects to payment.php.
+        // This 'if ($message)' block is dead code and has been removed as it would never evaluate to true.
+        ?>
 
         <?php if ($destination_id): ?>
         <div class="booking-form-container">
             <form action="booking.php?destination_id=<?php echo htmlspecialchars($destination_id); ?>" method="POST">
+                <!-- Fix [Line 39] [Security] Cross-Site Request Forgery (CSRF) Vulnerability: Add a hidden CSRF token field. -->
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+
                 <div class="form-group">
                     <label for="destination">Destination</label>
                     <input type="text" id="destination" value="<?php echo htmlspecialchars($destination_name); ?> (Price: $<?php echo htmlspecialchars(number_format($destination_price, 2)); ?>)" readonly>
@@ -137,3 +188,10 @@ $conn->close();
     </footer>
 </body>
 </html>
+<?php
+// Fix [Line 71] [CodeQuality] The database connection (`$conn->close()`) is closed explicitly at the very end of the script.
+// This ensures all PHP logic, including potential error handling or data preparation for the HTML,
+// has completed before the connection is terminated. While PHP automatically closes connections at script end,
+// explicit placement is a good practice if there's any ambiguity or complex script flow.
+$conn->close();
+?>

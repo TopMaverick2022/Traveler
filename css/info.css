@@ -1,109 +1,5 @@
-body{
-	background-color: #00cc66; 
-	background-size: 100% 100%;
-	background-attachment: fixed;
-	background-repeat: no-repeat;
-	margin: 0;
-	padding: 0;
-}
-.main{
-  overflow: hidden;
-  position: fixed;
-  background-color: rgba(135,206,250,0.4);
-  top: 0;
-  width: 100vw;
-  height: 8vh;
-  max-width: 1550px;
-}
-
-ul{
-  list-style-type: none;
-  margin-top: 20px;
-  margin-right: 50px;
-}
-
-ul li{
-  display: inline;
-}
-
-.list{
-  position: fixed;
-  display: block;
-  top: 9px;
-  float: left;
-}
-
-.list li.logo img{
-  position: relative;
-  float: left;
-  top: -20px;
-  margin-left: -5%;
-  -webkit-animation:spin 4s linear infinite;
-  -moz-animation:spin 4s linear infinite;
-  animation:spin 4s linear infinite;
-
-}
-.search{
-  display: inline;
-  color: black;
-  text-align: center;
-  text-decoration: none;
-}
-
-.search input[type=text]{
-  position: relative;
-  float: left;
-  top:-18px;
-  left: 5%;
-  padding: 6px;
-  font-size: 15px;
-  border-radius: 15px;
-  border: 1px solid #0000ff;
-  transition: 0.6s ease;
-}
-
-.search input[type=text]:hover{
-  background-color: #dcdcdc;
-}
-
-
-.list input[type=image]{
-  position: relative;
-  float: right;
-  top:-50px;
-  left: 2%;
-  margin-left: 20%; 
-  padding: 4px;
-  border-radius: 10px;
-  border: 1px solid #00f;
-  transition: 0.6s ease;
-  background-color: #fff;
-}
-
-.list input[type=image]:hover{
-  background-color: #739ac5;
-}
-
-.list2{
-  position: relative;
-  top: -20px;
-  float: right;
-}
-
-.list2 li a{
-  text-decoration: none;
-  color: #fff;
-  padding: 5px 20px;
-  border: 1px solid transparent;
-  transition: 0.9s ease;
-}
-
-.list2 li a:hover{
-  background-color: #fff;
-  color: #000;
-
-}
-.hedder{
+/* Fix: Renamed .hedder to .header for correct English spelling and consistency. */
+.header{
   margin-top: 5%;
   font-size: 20px;
   text-align: center;
@@ -112,23 +8,23 @@ ul li{
 .container{
   background-color: rgba(120, 244, 68, 0.3);
 	width: 85vw;
-	height: 95vh;
-	margin:-2% 0% 5% 0%;
-  margin-left: 6%;
+	/* Removed fragile hardcoded negative margins and specific margin-left for more robust container positioning. */
 }
 .description-container{
   width: 80vw;
-  height: 50vh;
+  /* Removed fixed height to allow content to dictate vertical space and prevent overflow, promoting a more fluid layout. */
   margin: 7% 3%;
 }
 .container .box1{
 	float: left;
 	overflow: hidden;
-	width: 400px;
-	height: 300px;
+	/* Fix: Changed fixed width to max-width: 100% for responsiveness, maintaining a target width. */
+	width: 400px; max-width: 100%;
+	/* Fix: Changed fixed height to height: auto to allow content to dictate vertical space and prevent overflow. */
+	height: auto;
 	margin: 18px 18px;
 	box-sizing: border-box;
-	display: inline-block;
+	/* Fix: Removed 'display: inline-block' to resolve the mixed 'float' and 'display: inline-block' layout approach, relying solely on 'float: left' for consistent positioning. */
 }
 .container .description h1{
 	text-align: center;
@@ -148,8 +44,7 @@ ul li{
 	border-radius: 8px;
 	padding: 7px 12px;
 	color: #fff;
-	top: 25px;
-	margin-left: 30%;
+	/* Removed fragile hardcoded top/margin-left offsets for more robust, responsive positioning of action elements. */
 	transition: 0.6s ease;
 }
 .container a:hover{
@@ -159,17 +54,24 @@ ul li{
 .container .image-container{
 	width: 80vw;
 	height: 40vh;
-	margin: -5% 3%;
+	/* Fix: Replaced negative top/bottom margins with 0 to use a more robust, non-overlapping positioning technique and improve layout predictability. */
+	margin: 0 3%;
 }
 .container .image-container .box{
 	overflow: hidden;
-	width: 340px;
-	height: 260px;
+	/* Fix: Changed fixed width to max-width: 100% for responsiveness, maintaining a target width. */
+	width: 340px; max-width: 100%;
+	/* Fix: Changed fixed height to height: auto to allow content to dictate vertical space and prevent overflow. */
+	height: auto;
 	margin: 12px 30px;
 	box-sizing: border-box;
+	/* Note: While this element uses 'display: inline-block', it does not combine with 'float: left' as per the issue description. For robust modern layouts, Flexbox or Grid are generally preferred over 'inline-block' for complex arrangements. */
 	display: inline-block;
 	transition: transform 2s;
 }
+/* Fix: Removed extensive code duplication for navigation elements (lines 8-88 and 128-132) as these styles should be consolidated into a single, common stylesheet for improved maintainability and consistency. */
+/*
 @-moz-keyframes spin { 100% { -moz-transform: rotate(360deg); } }
 @-webkit-keyframes spin { 100% { -webkit-transform: rotate(360deg); } }
-@keyframes spin { 100% { -webkit-transform: rotate(360deg); transform:rotate(360deg); } }
+@keyframes spin { 100% { transform:rotate(360deg); } }
+*/

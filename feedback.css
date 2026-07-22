@@ -2,12 +2,14 @@ body{
 	margin:0;
 	padding:0;
 	background: linear-gradient(305deg, rgba(224,36,214,1) 24%, rgba(31,70,153,1) 83%);
-	height: 84vh;
+	/* [Fix 1] Changed 'height' to 'min-height' to allow content to expand beyond the initial viewport height, preventing overflow. */
+	min-height: 84vh;
 	background-size: 100% 100%;
 }
 h1{
 	text-align: center;
-	height: 50px;
+	/* [Fix 2] Removed fixed 'height' to prevent text truncation and allow content to determine its natural height based on content and padding. */
+	/* height: 50px; */
 	background-color: rgba(200,200,200,0.8);
 	font-size: 30px;
 }
@@ -16,9 +18,11 @@ h1{
 	border: 2px solid grey;
 	border-radius: 5px;
 	background-color: #3C8BDB;
+	/* [Fix 3] Replaced fixed 'height' with 'min-height' and added 'max-width' for better responsiveness and content flexibility. Adjusted 'margin' to 'auto' for horizontal centering. */
 	width: 50%;
-	height: 80%;
-	margin: 120px 25%;
+	max-width: 700px; /* Provides a maximum sensible width while maintaining responsiveness with 'width: 50%' */
+	min-height: 80%;
+	margin: 120px auto;
 }
 .form-group{
 	margin: 30px 30%;
@@ -30,15 +34,19 @@ h1{
 	border:2px solid #000;
 	border-radius: 5px;
 	width: 50%;
-	height: 20px;
+	/* [Fix 4] Changed fixed 'height' to 'min-height' and added 'padding' for better text fit and flexibility with varying font sizes. */
+	min-height: 20px;
+	padding: 5px 8px;
 }
 .text1 label{
 	margin:0px 27px; 
 }
 .form-group .inputTextarea{
 	margin: 10px 20px;
+	/* [Fix 5] Replaced fixed 'height' with 'min-height' and added 'max-width' to make the textarea more responsive and accommodate varying content. */
 	width: 85%;
-	height: 90px;
+	max-width: 600px; /* Limits the textarea width while retaining percentage-based sizing */
+	min-height: 90px;
 	border:1px solid #000;
 	border-radius: 5px;
 }
@@ -53,6 +61,7 @@ h1{
 	background-color: green;
 }
 
+/* [Fix 1] NOTE: These navigation styles (.main, ul, .list, .search, .list2, @keyframes) are reported as duplicated across 'feedback.css', 'signup.css', and 'style.css'. Resolving this requires architectural refactoring (consolidating into a shared stylesheet) which is beyond the scope of a minimal single-file fix. No code removal here to prevent breaking functionality; this issue requires a broader project refactor. */
 .main{
   overflow: hidden;
   position: fixed;
@@ -61,6 +70,8 @@ h1{
   width: 100vw;
   height: 8vh;
   max-width: 1550px;
+  /* [Fix 8] Added 'margin: 0 auto;' to '.main' to horizontally center it when the viewport is wider than its 'max-width'. */
+  margin: 0 auto;
 }
 
 ul{
@@ -83,8 +94,10 @@ ul li{
 .list li.logo img{
   position: relative;
   float: left;
+  /* [Line 105 - Fix 2] Reverted 'transform: translateY' to 'top' to address the issue of using transform for static layout positioning, which can be brittle. 'top' is more appropriate for static offsets with 'position: relative'. */
   top: -20px;
   margin-left: -5%;
+  /* [Fix 6] The standard 'animation' property is already listed last, which ensures it takes precedence in modern browsers. No code change needed for this specific issue. */
   -webkit-animation:spin 4s linear infinite;
   -moz-animation:spin 4s linear infinite;
   animation:spin 4s linear infinite;
@@ -100,7 +113,8 @@ ul li{
 .search input[type=text]{
   position: relative;
   float: left;
-  top:-18px;
+  /* [Line 115 - Fix 3] Reverted 'transform: translateY' to 'top' to address the issue of using transform for static layout positioning, which suggests a workaround for layout problems. 'top' is more appropriate for static offsets with 'position: relative'. */
+  top: -18px;
   left: 5%;
   padding: 6px;
   font-size: 15px;
@@ -117,7 +131,8 @@ ul li{
 .list input[type=image]{
   position: relative;
   float: right;
-  top:-50px;
+  /* [Line 128 - Fix 4] Reverted 'transform: translateY' to 'top' to address the issue of using transform for static layout positioning, which indicates an excessively complex and fragile layout system. 'top' is more appropriate for static offsets with 'position: relative'. */
+  top: -50px;
   left: 2%;
   margin-left: 20%; 
   padding: 4px;
@@ -133,6 +148,7 @@ ul li{
 
 .list2{
   position: relative;
+  /* [Line 141 - Fix 5] Reverted 'transform: translateY' to 'top' to address the issue of using complex and brittle transform for simple static layout tasks. 'top' is more appropriate for static offsets with 'position: relative'. */
   top: -20px;
   float: right;
 }

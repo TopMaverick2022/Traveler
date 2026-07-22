@@ -1,8 +1,8 @@
 <?php
 session_start();
 require_once 'vendor/autoload.php';
-include 'db_connection.php';
-include 'config.php';
+require_once 'db_connection.php';       // Fix for Issue 1: Use require_once for critical dependencies to ensure they are loaded and prevent re-inclusion.
+require_once 'config.php';              // Fix for Issue 1: Use require_once for critical dependencies to ensure they are loaded and prevent re-inclusion.
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -12,7 +12,8 @@ if (!isset($_SESSION['user_id'])) {
 
 // Set your secret key. Remember to switch to your live secret key in production.
 // See your keys here: https://dashboard.stripe.com/apikeys
-Stripe\Stripe::setApiKey(STRIPE_SECRET_KEY);
+// Fix for Issue 1: Retrieve sensitive API keys from environment variables for enhanced security and ease of deployment management.
+Stripe\Stripe::setApiKey(getenv('STRIPE_SECRET_KEY'));
 
 $booking_id = filter_input(INPUT_GET, 'booking_id', FILTER_VALIDATE_INT);
 $hotel_booking_id = filter_input(INPUT_GET, 'hotel_booking_id', FILTER_VALIDATE_INT);
@@ -22,59 +23,81 @@ $booking_type = '';
 $item_name = '';
 $booking_identifier = null;
 
-// Determine booking type and fetch details
+// Fix for Issue 4: Refactored duplicate logic for fetching booking details into a more generic approach to reduce redundancy.
+// Common variables for DB interaction
+$stmt = null;
+$sql = null;
+$id_param = null;
+$error_msg_prefix = '';
+$item_name_base = '';
+$bind_types = '';
+
+// Define common variables for bind_param, using constants for status
+// Assumes BOOKING_STATUS_PENDING is defined in config.php (Fix for Issue 5)
+// Fix for Issue 1: Removed conditional constant definition. BOOKING_STATUS_PENDING should be defined once in 'config.php'.
+$user_id = $_SESSION['user_id'];
+$pending_status = BOOKING_STATUS_PENDING;
+
+// Determine booking type and setup dynamic query parts
 if ($booking_id && $booking_id > 0) {
+    // Fix for Issue 2: Removed conditional constant definition. BOOKING_TYPE_DESTINATION should be defined once in 'config.php'.
     // Destination booking
-    $booking_type = 'destination';
+    $booking_type = BOOKING_TYPE_DESTINATION; // Fix for Issue 7: Use constant for booking type, ideally defined in config.php.
     $booking_identifier = $booking_id;
+    $id_param = $booking_id;
+    $error_msg_prefix = 'Destination';
+    // Alias destination.name as item_display_name for consistency in fetching
+    $sql = "SELECT b.total_price, d.name AS item_display_name FROM booking b JOIN destination d ON b.destination_id = d.destination_id WHERE b.booking_id = ? AND b.user_id = ? AND b.status = ?";
+    $bind_types = "iis"; // int, int, string
+    $item_name_base = 'Destination Booking: ';
 
-    $stmt = $conn->prepare("SELECT b.total_price, d.name AS destination_name FROM booking b JOIN destination d ON b.destination_id = d.destination_id WHERE b.booking_id = ? AND b.user_id = ? AND b.status = 'pending'");
-    $stmt->bind_param("ii", $booking_id, $_SESSION['user_id']);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows > 0) {
-        $booking_data = $result->fetch_assoc();
-        $total_amount_cents = round($booking_data['total_price'] * 100); // Stripe expects cents
-        $item_name = 'Destination Booking: ' . htmlspecialchars($booking_data['destination_name']);
-    } else {
-        $_SESSION['error_message'] = 'Destination booking not found or already processed.';
-        header('Location: index.php'); // Redirect to a suitable page
-        exit();
-    }
-    $stmt->close();
 } elseif ($hotel_booking_id && $hotel_booking_id > 0) {
+    // Fix for Issue 3: Removed conditional constant definition. BOOKING_TYPE_HOTEL should be defined once in 'config.php'.
     // Hotel booking
-    $booking_type = 'hotel';
+    $booking_type = BOOKING_TYPE_HOTEL; // Fix for Issue 7: Use constant for booking type, ideally defined in config.php.
     $booking_identifier = $hotel_booking_id;
+    $id_param = $hotel_booking_id;
+    $error_msg_prefix = 'Hotel';
+    // Alias hotel.name as item_display_name for consistency in fetching
+    $sql = "SELECT hb.total_price, h.name AS item_display_name, hr.room_type FROM hotel_bookings hb JOIN hotels h ON hb.hotel_id = h.hotel_id JOIN hotel_rooms hr ON hb.room_id = hr.room_id WHERE hb.hotel_booking_id = ? AND hb.user_id = ? AND hb.booking_status = ?";
+    $bind_types = "iis"; // int, int, string
+    $item_name_base = 'Hotel Booking: ';
 
-    $stmt = $conn->prepare("SELECT hb.total_price, h.name AS hotel_name, hr.room_type FROM hotel_bookings hb JOIN hotels h ON hb.hotel_id = h.hotel_id JOIN hotel_rooms hr ON hb.room_id = hr.room_id WHERE hb.hotel_booking_id = ? AND hb.user_id = ? AND hb.booking_status = 'pending'");
-    $stmt->bind_param("ii", $hotel_booking_id, $_SESSION['user_id']);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows > 0) {
-        $booking_data = $result->fetch_assoc();
-        $total_amount_cents = round($booking_data['total_price'] * 100); // Stripe expects cents
-        $item_name = 'Hotel Booking: ' . htmlspecialchars($booking_data['hotel_name']) . ' - ' . htmlspecialchars($booking_data['room_type']);
-    } else {
-        $_SESSION['error_message'] = 'Hotel booking not found or already processed.';
-        header('Location: index.php'); // Redirect to a suitable page
-        exit();
-    }
-    $stmt->close();
 } else {
     $_SESSION['error_message'] = 'No valid booking ID provided.';
     header('Location: index.php'); // Redirect to a suitable page
     exit();
 }
 
+// Common logic for query execution and result processing
+if ($sql) {
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param($bind_types, $id_param, $user_id, $pending_status); // Fix for Issue 5: Use constant for 'pending' status.
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows > 0) {
+        $booking_data = $result->fetch_assoc();
+        $total_amount_cents = round($booking_data['total_price'] * 100); // Stripe expects cents
+        $item_name = $item_name_base . htmlspecialchars($booking_data['item_display_name']);
+        if ($booking_type === BOOKING_TYPE_HOTEL && isset($booking_data['room_type'])) {
+            $item_name .= ' - ' . htmlspecialchars($booking_data['room_type']);
+        }
+    } else {
+        $_SESSION['error_message'] = $error_msg_prefix . ' booking not found or already processed.';
+        header('Location: index.php'); // Redirect to a suitable page
+        exit();
+    }
+    $stmt->close();
+}
+
 // Create a Checkout Session.
 try {
+    // Fix for Issue 4: Removed conditional constant definition. DEFAULT_CURRENCY should be defined once in 'config.php'.
     $checkout_session = Stripe\Checkout\Session::create([
         'line_items' => [[ // Use line_items for items being purchased
             'price_data' => [
-                'currency' => 'usd',
+                'currency' => DEFAULT_CURRENCY, // Fix for Issue 6: Use constant for currency, ideally defined in config.php.
                 'product_data' => [
                     'name' => $item_name,
                 ],
@@ -83,12 +106,12 @@ try {
             'quantity' => 1,
         ]],
         'mode' => 'payment',
-        'success_url' => BASE_URL . 'process_payment.php?session_id={CHECKOUT_SESSION_ID}',
+        'success_url' => BASE_URL . 'payment_success.php?session_id={CHECKOUT_SESSION_ID}', // Fix for Issue 2: Changed to 'payment_success.php' to clarify this is a user-facing page, not a backend processing endpoint, as definitive payment status should be handled by webhooks.
         'cancel_url' => BASE_URL . 'index.php?payment_cancelled=true',
         'metadata' => [
             'user_id' => $_SESSION['user_id'],
             'booking_type' => $booking_type,
-            ($booking_type == 'destination' ? 'booking_id' : 'hotel_booking_id') => $booking_identifier
+            ($booking_type == BOOKING_TYPE_DESTINATION ? 'booking_id' : 'hotel_booking_id') => $booking_identifier // Fix for Issue 7: Use constants for booking types.
         ],
     ]);
 
@@ -97,7 +120,8 @@ try {
     // Or linking it later via the webhook.
 
 } catch (Exception $e) {
-    $_SESSION['error_message'] = 'Error creating Stripe checkout session: ' . $e->getMessage();
+    error_log('Stripe checkout session creation failed: ' . $e->getMessage()); // Fix for Issue 3: Log detailed error internally for debugging.
+    $_SESSION['error_message'] = 'An unexpected error occurred. Please try again or contact support.'; // Fix for Issue 3: Provide a generic, user-friendly error message to prevent exposing sensitive internal details.
     header('Location: index.php'); // Redirect to an error page
     exit();
 }

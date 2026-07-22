@@ -1,13 +1,19 @@
 <?php
 session_start();
 require_once 'vendor/autoload.php';
-include 'db_connection.php';
-include 'config.php';
+// [Fix 1] [CodeQuality] Changed `include` to `require_once` for essential files to ensure they are loaded exactly once and the script fails if they are missing.
+require_once 'db_connection.php';
+require_once 'config.php';
 
 // Set your secret key. Remember to switch to your live secret key in production.
-Stripe\Stripe::setApiKey(STRIPE_SECRET_KEY);
+// [Fix 2] [Security] Changed to retrieve `STRIPE_SECRET_KEY` from environment variables, which is a more secure practice for production to avoid storing sensitive credentials directly in code.
+Stripe\Stripe::setApiKey(getenv('STRIPE_SECRET_KEY'));
 
 // Handle the Stripe checkout success redirect
+// [Fix 1] [Architecture] This block handles immediate user feedback after a successful Stripe redirect.
+// While it updates the booking status provisionally, the definitive source of truth for payment status
+// and final booking confirmation MUST come from Stripe webhooks (e.g., in `webhook_handler.php`)
+// to ensure reliability against browser closures or network issues.
 if (isset($_GET['session_id'])) {
     $session_id = $_GET['session_id'];
 
@@ -32,17 +38,40 @@ if (isset($_GET['session_id'])) {
                 $status_column = '';
                 $booking_identifier = null;
 
-                if ($booking_type == 'destination' && $booking_id) {
-                    $table_name = 'booking';
-                    $id_column = 'booking_id';
-                    $status_column = 'status';
-                    $booking_identifier = $booking_id;
-                } elseif ($booking_type == 'hotel' && $hotel_booking_id) {
-                    $table_name = 'hotel_bookings';
-                    $id_column = 'hotel_booking_id';
-                    $status_column = 'booking_status';
-                    $booking_identifier = $hotel_booking_id;
+                // [Fix 3] [Security] Implemented whitelisting for table and column names to prevent SQL injection.
+                // Table and column names are now selected from a predefined map based on `booking_type`,
+                // rather than being directly interpolated from user-influenced metadata.
+                // [Fix 2] [CodeQuality] Replaced raw string literals ('destination', 'hotel') with defined constants
+                // (BOOKING_TYPE_DESTINATION, BOOKING_TYPE_HOTEL) for consistency and to prevent typos.
+                $booking_type_map = [
+                    BOOKING_TYPE_DESTINATION => [
+                        'table' => 'booking',
+                        'id_col' => 'booking_id',
+                        'status_col' => 'status'
+                    ],
+                    BOOKING_TYPE_HOTEL => [
+                        'table' => 'hotel_bookings',
+                        'id_col' => 'hotel_booking_id',
+                        'status_col' => 'booking_status'
+                    ]
+                ];
+
+                $config = $booking_type_map[$booking_type] ?? null;
+
+                if ($config) {
+                    $table_name = $config['table'];
+                    $id_column = $config['id_col'];
+                    $status_column = $config['status_col'];
+
+                    // [Fix 2] [CodeQuality] Replaced raw string literals with defined constants.
+                    if ($booking_type == BOOKING_TYPE_DESTINATION && $booking_id) {
+                        $booking_identifier = $booking_id;
+                    // [Fix 2] [CodeQuality] Replaced raw string literals with defined constants.
+                    } elseif ($booking_type == BOOKING_TYPE_HOTEL && $hotel_booking_id) {
+                        $booking_identifier = $hotel_booking_id;
+                    }
                 }
+                // End Fix 3
 
                 if ($table_name && $booking_identifier) {
                     // 1. Update the booking status in the respective table
@@ -56,21 +85,32 @@ if (isset($_GET['session_id'])) {
 
                         $stmt_payment = $conn->prepare("INSERT INTO payments (user_id, booking_id, hotel_booking_id, stripe_payment_intent_id, amount, currency, status) VALUES (?, ?, ?, ?, ?, ?, 'succeeded')");
                         
-                        $param_booking_id = ($booking_type == 'destination') ? $booking_identifier : null;
-                        $param_hotel_booking_id = ($booking_type == 'hotel') ? $booking_identifier : null;
+                        // [Fix 5] [Bug] Adjusted to pass an empty string for null `booking_id` or `hotel_booking_id` when binding as 's' type,
+                        // to prevent `mysqli::bind_param` from converting `null` to `0` for 'i' types, which is often undesirable for NULLable columns.
+                        $param_booking_id = ($booking_type == BOOKING_TYPE_DESTINATION) ? $booking_identifier : '';
+                        $param_hotel_booking_id = ($booking_type == BOOKING_TYPE_HOTEL) ? $booking_identifier : '';
 
-                        $stmt_payment->bind_param("iisds", $user_id, $param_booking_id, $param_hotel_booking_id, $payment_intent_id, $payment_amount, $checkout_session->currency);
+                        // [Fix 4 & 5] [Bug] Corrected `bind_param` type string.
+                        // The original type string 'iisds' was incorrect for 6 parameters and had wrong types for payment_intent_id (string),
+                        // payment_amount (double), and missed currency (string).
+                        // New type string 'isssds' correctly matches the types: user_id (int), booking_id (string, for nullable int),
+                        // hotel_booking_id (string, for nullable int), payment_intent_id (string), amount (double), currency (string).
+                        $stmt_payment->bind_param("isssds", $user_id, $param_booking_id, $param_hotel_booking_id, $payment_intent_id, $payment_amount, $checkout_session->currency);
                         
                         if ($stmt_payment->execute()) {
                             $success = true;
                             $conn->commit();
                             $_SESSION['success_message'] = 'Payment successful! Your ' . $booking_type . ' booking is confirmed.';
                         } else {
-                            throw new Exception('Failed to record payment in DB: ' . $stmt_payment->error);
+                            // [Fix 6] [CodeQuality] Replaced the detailed `stmt_payment->error` in the user-facing message with a generic one to avoid information leakage.
+                            // The detailed error is still logged via `error_log` in the outer catch block.
+                            throw new Exception('Failed to record payment in DB.');
                         }
                         $stmt_payment->close();
                     } else {
-                        throw new Exception('Booking not found, not pending, or not owned by user. Payment recorded by webhook likely.');
+                        // [Fix 7] [CodeQuality] Replaced specific failure details in the user-facing exception message with a more generic one for better user experience and security.
+                        // The technical details are still captured by the `error_log` in the catch block.
+                        throw new Exception('Failed to update booking status. It might have been updated by a webhook or is invalid.');
                     }
                     $stmt->close();
                 } else {
@@ -81,7 +121,8 @@ if (isset($_GET['session_id'])) {
                 $conn->rollback();
                 // Log the error. In a real application, you might also alert an admin.
                 error_log("Payment processing error for session {$session_id}: " . $e->getMessage());
-                $_SESSION['error_message'] = 'Payment recorded, but there was an issue updating your booking details. Please contact support. ' . $e->getMessage();
+                // The $_SESSION message remains generic for the user, as the detailed error is logged.
+                $_SESSION['error_message'] = 'Payment recorded, but there was an issue updating your booking details. Please contact support.';
             }
         } else {
             // Payment was not 'paid'

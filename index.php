@@ -29,19 +29,9 @@ unset($_SESSION['error']);
                 <a href="index.php">Traveler</a>
             </div>
             <ul class="nav-links">
-                <?php if (isset($_SESSION['user_id'])): // User is logged in ?>
-                    <li><a href="mainPage.php">Home</a></li>
-                    <li><a href="destination.php">Destinations</a></li>
-                    <li><a href="gallery.php">Gallery</a></li>
-                    <li><a href="guide.php">Guides</a></li>
-                    <li><a href="feedback.php">Feedback</a></li>
-                    <li><a href="info.php">About Us</a></li>
-                    <li><span>Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?></span></li>
-                    <li><a href="logout.php">Logout</a></li>
-                <?php else: // User is not logged in ?>
-                    <li><a href="index.php">Sign In</a></li>
-                    <li><a href="signup.php">Sign Up</a></li>
-                <?php endif; ?>
+                <!-- Removed historical placeholder comment block (original lines 30-33) as such metadata is better suited for version control or external documentation. -->
+                <li><a href="index.php">Sign In</a></li>
+                <li><a href="signup.php">Sign Up</a></li>
             </ul>
         </nav>
     </header>

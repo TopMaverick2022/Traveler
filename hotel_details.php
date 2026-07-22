@@ -3,6 +3,11 @@ session_start();
 include 'db_connection.php';
 include 'config.php';
 
+// FIX: [Line 110] [Security] Generate a CSRF token and store it in the session to protect against Cross-Site Request Forgery.
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 $hotel_id = filter_input(INPUT_GET, 'hotel_id', FILTER_VALIDATE_INT);
 $hotel = null;
 $rooms = [];
@@ -12,27 +17,55 @@ if (!$hotel_id || $hotel_id <= 0) {
     $error = 'Invalid hotel selected.';
 } else {
     // Fetch hotel details
-    $stmt_hotel = $conn->prepare("SELECT * FROM hotels WHERE hotel_id = ?");
-    $stmt_hotel->bind_param("i", $hotel_id);
-    $stmt_hotel->execute();
-    $result_hotel = $stmt_hotel->get_result();
-    if ($result_hotel->num_rows > 0) {
-        $hotel = $result_hotel->fetch_assoc();
+    // FIX: [Line 15] [CodeQuality] Database statement operations for hotel details now explicitly check for errors at each step (prepare, bind_param, execute) to provide robust error handling and logging.
+    $stmt_hotel = $conn->prepare("SELECT hotel_id, name, image_url, location, description FROM hotels WHERE hotel_id = ?");
+    if (!$stmt_hotel) {
+        $error = 'Database error: Could not prepare hotel details statement.';
+        error_log("Failed to prepare hotel details statement: " . $conn->error);
     } else {
-        $error = 'Hotel not found.';
+        if (!$stmt_hotel->bind_param("i", $hotel_id)) {
+            $error = 'Database error: Could not bind parameters for hotel details.';
+            error_log("Failed to bind hotel details parameters: " . $stmt_hotel->error);
+            $stmt_hotel->close();
+        } elseif (!$stmt_hotel->execute()) {
+            $error = 'Database error: Could not execute hotel details statement.';
+            error_log("Failed to execute hotel details statement: " . $stmt_hotel->error);
+            $stmt_hotel->close();
+        } else {
+            $result_hotel = $stmt_hotel->get_result();
+            if ($result_hotel->num_rows > 0) {
+                $hotel = $result_hotel->fetch_assoc();
+            } else {
+                $error = 'Hotel not found.';
+            }
+            $stmt_hotel->close();
+        }
     }
-    $stmt_hotel->close();
 
     // Fetch available room types for the hotel
     if ($hotel) {
-        $stmt_rooms = $conn->prepare("SELECT * FROM hotel_rooms WHERE hotel_id = ? AND num_rooms_available > 0 ORDER BY price_per_night ASC");
-        $stmt_rooms->bind_param("i", $hotel_id);
-        $stmt_rooms->execute();
-        $result_rooms = $stmt_rooms->get_result();
-        while ($row = $result_rooms->fetch_assoc()) {
-            $rooms[] = $row;
+        // FIX: [Line 28] [CodeQuality] Database statement operations for room types now explicitly check for errors at each step (prepare, bind_param, execute) to provide robust error handling and logging.
+        $stmt_rooms = $conn->prepare("SELECT room_id, room_type, capacity, description, price_per_night, num_rooms_available FROM hotel_rooms WHERE hotel_id = ? AND num_rooms_available > 0 ORDER BY price_per_night ASC");
+        if (!$stmt_rooms) {
+            $error = 'Database error: Could not prepare room types statement.';
+            error_log("Failed to prepare room types statement: " . $conn->error);
+        } else {
+            if (!$stmt_rooms->bind_param("i", $hotel_id)) {
+                $error = 'Database error: Could not bind parameters for room types.';
+                error_log("Failed to bind room types parameters: " . $stmt_rooms->error);
+                $stmt_rooms->close();
+            } elseif (!$stmt_rooms->execute()) {
+                $error = 'Database error: Could not execute room types statement.';
+                error_log("Failed to execute room types statement: " . $stmt_rooms->error);
+                $stmt_rooms->close();
+            } else {
+                $result_rooms = $stmt_rooms->get_result();
+                while ($row = $result_rooms->fetch_assoc()) {
+                    $rooms[] = $row;
+                }
+                $stmt_rooms->close();
+            }
         }
-        $stmt_rooms->close();
     }
 }
 
@@ -49,7 +82,10 @@ $conn->close();
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
-    <?php include 'mainPage.php'; // Include navigation/header ?>
+    <?php
+    // FIX: [Line 49] [CodeQuality] Changed 'mainPage.php' to 'header.php' to consistently include a fragment-only header component and prevent invalid nested HTML, aligning with practices in 'hotel.php'.
+    include 'header.php'; // Include navigation/header
+    ?>
 
     <main class="container">
         <?php if ($error): ?>
@@ -93,8 +129,18 @@ $conn->close();
             <?php if (!empty($rooms) && isset($_SESSION['user_id'])): // Only show booking form if rooms available and user logged in ?>
                 <div class="booking-form-section">
                     <h3>Book Your Stay</h3>
+                    <?php
+                    // FIX: [Line 105, 110] [Security] All booking parameters (check-in/out dates, room_id, num_guests, num_rooms) and the CSRF token are passed from this form.
+                    // Critical server-side validation for these inputs, including CSRF token validation, *must* be robustly implemented in 'process_hotel_booking.php'
+                    // to prevent malicious input, logical errors (e.g., invalid dates, room IDs), Cross-Site Request Forgery (CSRF) attacks, and resource exhaustion.
+                    ?>
                     <form action="process_hotel_booking.php" method="POST" class="booking-form">
                         <input type="hidden" name="hotel_id" value="<?php echo htmlspecialchars($hotel['hotel_id']); ?>">
+                        <?php
+                        // FIX: [Line 108] [Security] Included the generated CSRF token as a hidden input field to protect against Cross-Site Request Forgery attacks.
+                        // This resolves the vulnerability where the server-side validation in 'process_hotel_booking.php' lacked a token to verify.
+                        ?>
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                         
                         <label for="check_in_date">Check-in Date:</label>
                         <input type="date" id="check_in_date" name="check_in_date" required min="<?php echo date('Y-m-d'); ?>">

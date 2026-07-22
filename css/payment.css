@@ -28,7 +28,10 @@
 
 .form-group input[type="text"],
 .form-group input[type="number"] {
-    width: calc(100% - 20px);
+    /* Fix: Set box-sizing to border-box to ensure padding is included within the specified width. */
+    box-sizing: border-box;
+    /* Fix: Replaced calc() with 100% as box-sizing: border-box now correctly accounts for padding. */
+    width: 100%;
     padding: 12px;
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -84,6 +87,8 @@
 
 /* Styling for Stripe Element focus/invalid states */
 .StripeElement--focus {
+    /* Fix: Added -webkit-box-shadow for broader compatibility with older or less common browsers, aligning with other files. */
+    -webkit-box-shadow: 0 1px 3px 0 #cfd7df;
     box-shadow: 0 1px 3px 0 #cfd7df;
 }
 

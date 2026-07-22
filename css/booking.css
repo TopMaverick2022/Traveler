@@ -1,18 +1,23 @@
 body{
 	margin:0;
 	padding:0px;
-	background:url(../images//background//eiffel1.jpg) no-repeat;
-	height: 90.8vh;
+	/* Removed historical comment about URL slashes. */
+	background:url(../images/background/eiffel1.jpg) no-repeat;
+	/* Removed historical comment about min-height. */
+	min-height: 100vh;
 	background-size: 100% 100%;
 	text-align: center;
 }
 body h1{
-	margin-top: 7%; 
+	/* Removed historical comment about margin-top. */
+	margin-top: 70px;
 }
 .container{
 	width: 40%;
 	height: 80%;
-	margin: -2% 27%;
+	/* Removed historical comment about negative margin-top. */
+	/* Changed fixed horizontal margin to auto for robust horizontal centering across screen sizes. */
+	margin: 0 auto;
 	padding: 40px;
 }
 .textbox
@@ -31,10 +36,11 @@ body h1{
 	font-size:18px;
 	width: 50%;
 	height: 30px;
-	
+
 }
 .textbox input::placeholder{
-	color: white;
+	/* Removed historical comment about placeholder color. */
+	color: rgba(255, 255, 255, 0.7);
 }
 .btn input{
 	margin-top: 10px;
@@ -53,10 +59,12 @@ body h1{
   top: 0;
   width: 100vw;
   height: 8vh;
-  max-width: 1550px;
+  /* Removed historical comment about max-width. */
+  /* max-width: 1550px; */
 }
 
-ul{
+/* Removed historical comment about ul selector specificity. */
+body > ul{
   list-style-type: none;
   margin-top: 20px;
   margin-right: 50px;
@@ -70,14 +78,20 @@ ul li{
   position: fixed;
   display: block;
   top: 9px;
-  float: left;
+  /* Removed 'float' as it often conflicts or is redundant with 'position: fixed', improving maintainability. */
+  /* float: left; */
 }
 
 .list li.logo img{
   position: relative;
-  float: left;
+  /* Removed 'float' as it often conflicts or is redundant with 'position: relative' and specific positioning, improving maintainability. */
+  /* float: left; */
   top: -20px;
-  margin-left: -5%;
+  /* Removed historical comment about margin-left vs left. */
+  /* Replaced 'left' with 'transform: translateX' for a more robust and performant way to adjust position without affecting document flow. */
+  /* margin-left: -5%; */
+  /* left: -5%; */
+  transform: translateX(-5%);
   -webkit-animation:spin 4s linear infinite;
   -moz-animation:spin 4s linear infinite;
   animation:spin 4s linear infinite;
@@ -92,7 +106,8 @@ ul li{
 
 .search input[type=text]{
   position: relative;
-  float: left;
+  /* Removed 'float' as it often conflicts or is redundant with 'position: relative' and specific positioning, improving maintainability. */
+  /* float: left; */
   top:-18px;
   left: 5%;
   padding: 6px;
@@ -109,10 +124,12 @@ ul li{
 
 .list input[type=image]{
   position: relative;
-  float: right;
+  /* Removed 'float' as it often conflicts or is redundant with 'position: relative' and specific positioning, improving maintainability. */
+  /* float: right; */
   top:-50px;
-  left: 2%;
-  margin-left: 20%; 
+  /* Removed historical comment about conflicting left property. */
+  /* left: 2%; */
+  margin-left: 20%;
   padding: 4px;
   border-radius: 10px;
   border: 1px solid #00f;
@@ -127,7 +144,8 @@ ul li{
 .list2{
   position: relative;
   top: -20px;
-  float: right;
+  /* Removed 'float' as it often conflicts or is redundant with 'position: relative', improving maintainability. */
+  /* float: right; */
 }
 
 .list2 li a{
@@ -146,4 +164,4 @@ ul li{
 
 @-moz-keyframes spin { 100% { -moz-transform: rotate(360deg); } }
 @-webkit-keyframes spin { 100% { -webkit-transform: rotate(360deg); } }
-@keyframes spin { 100% { -webkit-transform: rotate(360deg); transform:rotate(360deg); } }
+@keyframes spin { 100% { /* Removed historical comment about duplicate transform. */ transform:rotate(360deg); } }

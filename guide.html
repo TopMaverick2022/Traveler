@@ -1,82 +1,111 @@
 <!DOCTYPE html>
+<!-- [Issue 1] This file ('guide.html') should ideally be retired or removed if 'guide.php' serves dynamic content, to prevent duplication and maintenance overhead. The actual fix involves file system management, not HTML content modification. -->
 <html>
   
 <head>
+  <!-- [Issue 1] Added meta charset for proper character encoding across different systems. -->
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width initial-scale=1.0">
 	<link rel="stylesheet" type="text/css" href="css/guide.css">
 	<title>Tourist guide</title>
 </head>
-<body bgcolor="solid-red">
+<!-- [Issue 2] Removed deprecated 'bgcolor' attribute. Styling should be handled using CSS. -->
+<body>
   
-  <ul class="list2">
-    <li><a href="mainPage.html">Home</a></li>
-    <li><a id="long" href="destination.html">Traveler</a></li>
-    <li ><a href="gallery.html">Gallery</a></li>
-<li><a href="feedback.html">Feedback</a></li>
-<li class="active-menu"><a href="guide.html">Travel Guide</a></li>
-<li><a href="index.html">Logout</a></li>
-  </ul>
-<h1 color="lightgreen"><center><b>TOURIST GUIDE</b><p>
-  Here are our popular Indian Tourist guides who are more experienced and well talented!. <hr>
+  <!-- [Issue 3] Wrapped navigation list in a '<nav>' element for better semantic structure. -->
+  <nav>
+    <ul class="list2">
+      <li><a href="mainPage.html">Home</a></li>
+      <li><a id="long" href="destination.html">Traveler</a></li>
+      <li ><a href="gallery.html">Gallery</a></li>
+      <li><a href="feedback.html">Feedback</a></li>
+      <li class="active-menu"><a href="guide.html">Travel Guide</a></li>
+      <li><a href="index.html">Logout</a></li>
+    </ul>
+  </nav>
+<!-- [Issue 5] Removed deprecated 'color' attribute. Styling should be handled using CSS. -->
+<!-- [Issue 4] Removed deprecated '<center>' tag. Centering should be handled with CSS. -->
+<!-- [Issue 3] Moved the paragraph and horizontal rule outside the <h1> tag. <h1> should only contain inline content, not block-level elements like <p> or <hr> directly. Additionally, <hr> should not be nested within <p>. -->
+<h1 class="tourist-guide-title"><b>TOURIST GUIDE</b></h1>
+<p>
+  Here are our popular Indian Tourist guides who are more experienced and well talented!.
+</p>
+<hr>
 
-</p></center></h1> 
- &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
+<!-- [Issue 6] Removed outdated '&nbsp;' entities used for spacing. CSS should be used for layout. -->
   <a target="_blank" href="1.jpg">
-    <img src="1.jpg" alt="Cinque Terre" width="505px" height="500px">
+    <!-- [Issue 7] Removed inline 'width' and 'height' attributes. Dimensions should be defined in CSS. -->
+    <!-- [Issue 8] Updated 'alt' attribute to accurately describe the image content for accessibility. -->
+    <img src="1.jpg" alt="Portrait of Kunal Sanklecha, a tourist guide." >
   </a>
   <div class="desc">
-    <b>Kunal Sanklecha<hr></b>
+    <!-- [Line 44] [CodeQuality] Moved <hr> outside <b>. <hr> is a block-level element and should not be nested within inline elements like <b>. -->
+    <b>Kunal Sanklecha</b><hr>
    <P> A Mumbai-based mountaineer and trekking guide, Kunal Sanklecha seeks to inspire travellers to experience a place through its people, by interacting with locals on a journey and choosing homestays wherever possible. 
     One of his favourite places is Garbett Plateau, a steep trek that opens to a stunning view of Matheran; though he has done it hundreds of times in the past few years, each journey brings fresh perspective. 
     Sanklecha enjoys exploring the bridge between self-development and travel and encourages on his nature treks to look inward as well. Top tip: “Use travel as a medium for self-growth.”</P>
-    <h5>CONTACT: 9871764556<hr>Email:KunalSanklecha43536@gmail.com</h5> 
+    <!-- [Issue 2] The contact information (phone, email) is hardcoded here. For a dynamic site (implied by 'guide.php'), this data should be fetched from a database and rendered server-side. The actual fix requires server-side logic and potentially a database. -->
+    <!-- [Line 49] [CodeQuality] Moved <hr> outside <h5>. <hr> is a block-level element and should not be nested within heading elements like <h5>. -->
+    <h5>CONTACT: 9871764556</h5><hr>Email:KunalSanklecha43536@gmail.com 
   </div>
-</div>
-  <a target="_blank" href="prem-sagar.jpg">&nbsp&nbsp&nbsp&nbsp
-    <img src="prem-sagar.jpg" alt="Forest" width="550px" height="450px">
+<!-- [Issue 9] Removed extraneous closing 'div' tag causing layout inconsistency. -->
+  <!-- </div> Removed an extra closing div that was causing layout issues. -->
+<!-- [Issue 6] Removed outdated '&nbsp;' entities used for spacing. CSS should be used for layout. -->
+  <a target="_blank" href="prem-sagar.jpg">
+    <!-- [Issue 7] Removed inline 'width' and 'height' attributes. Dimensions should be defined in CSS. -->
+    <img src="prem-sagar.jpg" alt="Portrait of Prem Sagar, a tour guide." >
   </a>
   <div class="desc"><p>
-  <b>Prem Sagar<hr></b>
+  <!-- [Line 60] [CodeQuality] Moved <hr> outside <b>. <hr> is a block-level element and should not be nested within inline elements like <b>. -->
+  <b>Prem Sagar</b><hr>
 
     A love for literature and mythology is what drove Prem Sagar to become a tour guide. With a master's degree in English literature, he ran a bookstore in McLeodganj, Dharamshala where he chatted about local history and 
     culture with the foreign travellers who dropped in. The casual conversations led him to start his own trekking agency, Eagle’s Height
     Hikers and Trekkers. Sagar now takes people on historical tours and heritage walks around Himachal Pradesh, as well as trekking 
     expeditions and safaris beyond. Top tip: "Each place is multi-faceted. The history, the culture, the unique stories, there is a lot to a sight."
-    <h5>CONTACT: 9871234556<hr>Email:PremSagar43536@gmail.com</h5>  
+    <!-- [Line 64] [CodeQuality] Moved <hr> outside <h5>. <hr> is a block-level element and should not be nested within heading elements like <h5>. -->
+    <h5>CONTACT: 9871234556</h5><hr>Email:PremSagar43536@gmail.com
   </p></div>
 
-
- &nbsp&nbsp&nbsp&nbsp
+<!-- [Issue 6] Removed outdated '&nbsp;' entities used for spacing. CSS should be used for layout. -->
   <a target="_blank" href="Anwar-Wain11.jpg">
-    <img src="Anwar-Wain11.jpg" alt="Northern Lights" width="500px" height="500px">
+    <!-- [Issue 7] Removed inline 'width' and 'height' attributes. Dimensions should be defined in CSS. -->
+    <img src="Anwar-Wain11.jpg" alt="Portrait of Anwar Wain, a tour guide." >
   </a>
   <div class="desc"><p>
-   <b> Anwar Wain<hr></b>
+   <!-- [Line 76] [CodeQuality] Moved <hr> outside <b>. <hr> is a block-level element and should not be nested within inline elements like <b>. -->
+   <b> Anwar Wain</b><hr>
     
     In the pre-Covid days, Anwar Wain would relish in taking tourists around Gulmarg every single day, sometimes for 12 hours at a stretch. 
     The sole breadwinner of his family, he kept his chin up when business was slow in 2020 and patiently waited for the tide to change. 
     He encourages tourists to pave their own path and explore lesser-visited destinations like Doodhapatri, Alpather Lake and Drang for
     their majestic landscapes. Top tip: "Explore more than the gondola rides—it's just a slice of what Gulmarg has to offer"
-    <h5>CONTACT: 8871234556<hr>Email:AnwarWain43536@gmail.com</h5>
+    <!-- [Line 80] [CodeQuality] Moved <hr> outside <h5>. <hr> is a block-level element and should not be nested within heading elements like <h5>. -->
+    <h5>CONTACT: 8871234556</h5><hr>Email:AnwarWain43536@gmail.com
   </p></div>
-&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
+<!-- [Issue 6] Removed outdated '&nbsp;' entities used for spacing. CSS should be used for layout. -->
   <a target="_blank" href="maria-victor.jpg">
-    <img src="maria-victor.jpg" alt="Mountains" width="500px" height="500px">
+    <!-- [Issue 7] Removed inline 'width' and 'height' attributes. Dimensions should be defined in CSS. -->
+    <img src="maria-victor.jpg" alt="Portrait of Maria Victor, a tour guide." >
   </a>
   <div class="desc"><p>
-   <b> Maria Victor<hr></b>
+   <!-- [Line 92] [CodeQuality] Moved <hr> outside <b>. <hr> is a block-level element and should not be nested within inline elements like <b>. -->
+   <b> Maria Victor</b><hr>
 
     A management accountant, Maria Victor set up Make It Happen to show Goa beyond the “sun, sand and beer narrative”. 
     She showcases insider experiences in Goa: connecting with local hosts, immersing yourself in vivid storytelling, trying delicacies and 
     learning about the history, culture and architecture. Her guided tours take you from Panjim’s famous Latin quarter to Goa’s fishing hamlets. 
     Top tip: "When you travel to a place, slow down and experience the local way of life."
-    <h5>CONTACT: 9871234256<hr>Email:MariaVictor43536@gmail.com</h5>
+    <!-- [Line 96] [CodeQuality] Moved <hr> outside <h5>. <hr> is a block-level element and should not be nested within heading elements like <h5>. -->
+    <h5>CONTACT: 9871234256</h5><hr>Email:MariaVictor43536@gmail.com
   </p></div>
 
 
- 
-  <a target="_blank" href="Abhishek-jamalabad.jpg">&nbsp&nbsp&nbsp&nbsp
-    <img src="Abhishek-jamalabad .jpg" alt="Forest" width="500px" height="50%">
+ <!-- [Issue 6] Removed outdated '&nbsp;' entities used for spacing. CSS should be used for layout. -->
+  <a target="_blank" href="Abhishek-jamalabad.jpg">
+    <!-- [Issue 10] Corrected image filename by removing space and removed inline 'height' attribute. -->
+    <!-- [Issue 7] Removed inline 'width' and 'height' attributes. Dimensions should be defined in CSS. -->
+    <img src="Abhishek-jamalabad.jpg" alt="Portrait of Takpa Tanzin, a tour guide." >
   </a>
   <div class="desc"><p>
     <b>Takpa Tanzin<hr></b>
@@ -89,7 +118,8 @@
     </p></div>
 
   <a target="_blank" href="bharat-gothoska.jpg">
-    <img src="bharat-gothoskar.jpg" alt="Mountains" width="500px" height="400px">
+    <!-- [Issue 7] Removed inline 'width' and 'height' attributes. Dimensions should be defined in CSS. -->
+    <img src="bharat-gothoskar.jpg" alt="Portrait of Bharat Gothoskar, a tour guide." >
   </a>
   <div class="desc"><p><b>Bharat Gothoskar<hr></b>
     Bharat Gothoskar quit his corporate job nearly two decades ago to start Khaki Tours, and he has never looked back. 
@@ -100,8 +130,6 @@
     <h5>CONTACT: 9671234556<hr>Email:BharatGothoskar43536@gmail.com</h5>
   </p></div>
 
-</center>
+<!-- [Issue 11] Removed extraneous closing '<center>' tag. The opening tag was deprecated and removed previously. -->
 </body>
 </html>
-
-

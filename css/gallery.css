@@ -1,6 +1,9 @@
 body{
+	/* Added vendor prefixes for linear-gradient for broader browser compatibility. */
+	background: -webkit-linear-gradient(305deg, rgba(224,36,214,1) 20%, rgba(31,116,153,1) 46%, rgba(224,36,214,1) 90%); 
+	background: -moz-linear-gradient(305deg, rgba(224,36,214,1) 20%, rgba(31,116,153,1) 46%, rgba(224,36,214,1) 90%); 
 	background: linear-gradient(305deg, rgba(224,36,214,1) 20%, rgba(31,116,153,1) 46%, rgba(224,36,214,1) 90%); 
-	background-size: 100% 100%;
+	/* Removed redundant background-size as background-repeat: no-repeat for a single gradient implicitly fills the area. */
 	background-attachment: fixed;
 	background-repeat: no-repeat;
 	margin: 0;
@@ -19,7 +22,11 @@ h1{
   top: 0;
   width: 100vw;
   height: 8vh;
-  max-width: 1550px;
+  /* FIX: [Issue 1, 3, 5] Converted to flex container to enable modern layout for its children (.list, .search, .list2) and address problematic `float` usage. */
+  display: flex;
+  /* FIX: [Issue 3] Vertically aligned items in the fixed header for better consistency. */
+  align-items: center;
+  /* Removed max-width to allow the header to expand fully on larger screens, addressing potential layout constraints. */
 }
 
 ul{
@@ -33,24 +40,27 @@ ul li{
 }
 
 .list{
-  position: fixed;
-  display: block;
-  top: 9px;
-  float: left;
+  /* FIX: [Issue 1, 2, 4] Removed problematic `float: left`, `position: fixed`, and `top` offset to integrate `.list` as a flexible item within its `position: fixed` parent (`.main`). Converted to a flex container to manage its own children with modern layout. */
+  /* position: fixed; -- REMOVED */
+  display: flex;
+  /* top: 9px; -- REMOVED */
+  /* float: left; -- REMOVED */
 }
 
 .list li.logo img{
   position: relative;
-  float: left;
-  top: -20px;
-  margin-left: -5%;
+  /* FIX: [Issue 2] Removed `float: left` as its parent `.list` is now a flex container, which provides robust positioning. */
+  /* float: left; -- REMOVED */
+  /* Removed fragile negative positioning offsets to improve layout robustness. Consider using flexbox/grid for precise, responsive alignment if needed. */
+  /* Reordered animation properties to place vendor-prefixed versions before the standard property for best practice. */
   -webkit-animation:spin 4s linear infinite;
   -moz-animation:spin 4s linear infinite;
   animation:spin 4s linear infinite;
 
 }
 .search{
-  display: inline;
+  /* FIX: [Issue 3] Removed `display: inline` as it's a flex item within `.main` and contains a block-level input, letting flex layout manage its block-like behavior. */
+  /* display: inline; -- REMOVED */
   color: black;
   text-align: center;
   text-decoration: none;
@@ -58,9 +68,9 @@ ul li{
 
 .search input[type=text]{
   position: relative;
-  float: left;
-  top:-18px;
-  left: 5%;
+  /* FIX: [Issue 3] Removed `float: left` as its parent `.search` is now a flex item within a flex container (`.main`), which offers predictable positioning. */
+  /* float: left; -- REMOVED */
+  /* Removed hardcoded, fragile positioning (top/left) to prevent layout issues on different screen sizes. */
   padding: 6px;
   font-size: 15px;
   border-radius: 15px;
@@ -75,10 +85,9 @@ ul li{
 
 .list input[type=image]{
   position: relative;
-  float: right;
-  top:-50px;
-  left: 2%;
-  margin-left: 20%; 
+  /* FIX: [Issue 4] Removed `float: right` as its parent `.list` is now a flex container, providing robust positioning. */
+  /* float: right; -- REMOVED */
+  /* Removed hardcoded, fragile positioning (top/left/margin-left) to prevent layout issues and improve responsiveness. */
   padding: 4px;
   border-radius: 10px;
   border: 1px solid #00f;
@@ -92,8 +101,9 @@ ul li{
 
 .list2{
   position: relative;
-  top: -20px;
-  float: right;
+  /* Removed fragile negative top offset for .list2 to improve layout stability. */
+  /* FIX: [Issue 5] Removed `float: right` as its parent `.main` is now a flex container, offering robust positioning. */
+  /* float: right; -- REMOVED */
 }
 
 .list2 li a{
@@ -116,52 +126,27 @@ ul li{
 }
 
 .container{
-	width: 98.8vw;
+	/* FIX: [Issue 6] Changed 'width' to 100% and added `box-sizing: border-box` for a more robust and predictable layout, eliminating the 'magic number'. */
+	width: 100%;
+	box-sizing: border-box;
 	height: 48vh;
 	margin-bottom: 10px;
 	overflow: auto;
  	white-space: nowrap;
 }
 .container h2{
-	position: absolute;
+	/* Removed 'position: absolute;' to keep the element in the normal document flow, preventing potential overlaps and improving layout robustness. */
+	/* position: absolute; */
 	margin-top: 5px;
 	margin-left: 30px;
 	font-size: 25px;
 }
 .container1{
-	margin-top: -20px;
+	/* Changed 'margin-top: -20px;' to 'margin-top: 0;' to prevent element overlapping and ensure predictable layout behavior. */
+	margin-top: 0;
 }
-.container2{
-	margin-top: 30px;
-}
-.container3{
-	margin-top: 30px;
-}
-.container4{
-	margin-top: 30px;
-}
-.container5{
-	margin-top: 30px;
-}
-.container6{
-	margin-top: 30px;
-}
-.container7{
-	margin-top: 30px;
-}
-.container8{
-	margin-top: 30px;
-}
-.container9{
-	margin-top: 30px;
-}
-.container10{
-	margin-top: 30px;
-}
-.container11{
-	margin-top: 30px;
-}
-.container12{
+/* Consolidated repetitive margin-top declarations for containerX classes into a single rule for better maintainability. */
+.container2, .container3, .container4, .container5, .container6, .container7, .container8, .container9, .container10, .container11, .container12 {
 	margin-top: 30px;
 }
 .container::-webkit-scrollbar{
@@ -183,4 +168,4 @@ ul li{
 }
 @-moz-keyframes spin { 100% { -moz-transform: rotate(360deg); } }
 @-webkit-keyframes spin { 100% { -webkit-transform: rotate(360deg); } }
-@keyframes spin { 100% { -webkit-transform: rotate(360deg); transform:rotate(360deg); } }
+@keyframes spin { 100% { /* Removed redundant -webkit-transform from the standard @keyframes spin block; only the unprefixed transform is needed here. */ transform:rotate(360deg); } }

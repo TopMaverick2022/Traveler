@@ -3,12 +3,47 @@ session_start();
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
-    $_SESSION['error'] = "Please log in to access this page.";
+    // FIX: [Issue 1] Removed setting of $_SESSION['error'] because index.php does not display it,
+    // which led to silent failures or a confusing user experience.
     header("Location: index.php");
     exit();
 }
 
 // No database connection needed for static info page unless dynamic content is added
+
+// Fix for Issue 1: Extract navigation links into a reusable component.
+// This block prepares the navigation links as an array of strings,
+// making the navigation dynamic based on login status and reducing redundancy.
+// Fix for listed Issue 1: Removed unreachable 'else' branch and redundant 'if' condition as user login is guaranteed by an earlier check.
+$username = htmlspecialchars($_SESSION['username']); // Sanitize username once for output
+$navLinks = [
+    // Fix for listed Issue 2: Converted HTML string concatenation to heredoc syntax for improved readability and maintainability.
+    <<<HTML
+                    <li><a href="mainPage.php">Home</a></li>
+HTML,
+    <<<HTML
+                    <li><a href="destination.php">Destinations</a></li>
+HTML,
+    <<<HTML
+                    <li><a href="gallery.php">Gallery</a></li>
+HTML,
+    <<<HTML
+                    <li><a href="guide.php">Guides</a></li>
+HTML,
+    <<<HTML
+                    <li><a href="feedback.php">Feedback</a></li>
+HTML,
+    <<<HTML
+                    <li><a href="info.php">About Us</a></li>
+HTML,
+    // Using variable interpolation within heredoc for the username
+    <<<HTML
+                    <li><span>Welcome, {$username}</span></li>
+HTML,
+    <<<HTML
+                    <li><a href="logout.php">Logout</a></li>
+HTML,
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -26,19 +61,10 @@ if (!isset($_SESSION['user_id'])) {
                 <a href="mainPage.php">Traveler</a>
             </div>
             <ul class="nav-links">
-                <?php if (isset($_SESSION['user_id'])): ?>
-                    <li><a href="mainPage.php">Home</a></li>
-                    <li><a href="destination.php">Destinations</a></li>
-                    <li><a href="gallery.php">Gallery</a></li>
-                    <li><a href="guide.php">Guides</a></li>
-                    <li><a href="feedback.php">Feedback</a></li>
-                    <li><a href="info.php">About Us</a></li>
-                    <li><span>Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?></span></li>
-                    <li><a href="logout.php">Logout</a></li>
-                <?php else: ?>
-                    <li><a href="index.php">Sign In</a></li>
-                    <li><a href="signup.php">Sign Up</a></li>
-                <?php endif; ?>
+                <?php
+                // Render the dynamically generated navigation links by joining the array elements.
+                echo implode("\n", $navLinks);
+                ?>
             </ul>
         </nav>
     </header>
@@ -49,7 +75,8 @@ if (!isset($_SESSION['user_id'])) {
 
         <section class="our-story">
             <h2>Our Story</h2>
-            <p>Founded in [Year], Traveler began with a simple vision: to make the wonders of global travel accessible to everyone. We believe that exploring new cultures, witnessing stunning landscapes, and creating cherished memories are fundamental to a fulfilling life. From our humble beginnings, we've grown into a trusted name in the travel industry, serving thousands of adventurers worldwide.</p>
+            <!-- Fix for Issue 2: Replace static year with dynamic PHP year. -->
+            <p>Founded in <?php echo date('Y'); ?>, Traveler began with a simple vision: to make the wonders of global travel accessible to everyone. We believe that exploring new cultures, witnessing stunning landscapes, and creating cherished memories are fundamental to a fulfilling life. From our humble beginnings, we've grown into a trusted name in the travel industry, serving thousands of adventurers worldwide.</p>
         </section>
 
         <section class="our-mission">
@@ -63,7 +90,7 @@ if (!isset($_SESSION['user_id'])) {
                 <li><strong>Expert Guidance:</strong> Our team of experienced travel specialists and local guides ensure you get the most authentic experience.</li>
                 <li><strong>Tailored Itineraries:</strong> We offer customizable packages to suit every traveler's unique preferences and budget.</li>
                 <li><strong>Seamless Planning:</strong> From flights and accommodation to activities and local transport, we handle all the details.</li>
-                <li><strong>Customer Support:</strong> 24/7 support before, during, and after your trip for complete peace of mind.</li>
+                <li><strong>Customer Support:</strong> 24/7 support before, during and after your trip for complete peace of mind.</li>
                 <li><strong>Sustainable Travel:</strong> We partner with eco-friendly operators and promote responsible tourism practices.</li>
             </ul>
         </section>
@@ -80,7 +107,8 @@ if (!isset($_SESSION['user_id'])) {
     </main>
 
     <footer>
-        <p>&copy; 2023 Traveler. All rights reserved.</p>
+        <!-- FIX: [Issue 2] Dynamically generate copyright year using PHP date('Y') to prevent it from becoming outdated. -->
+        <p>&copy; <?php echo date('Y'); ?> Traveler. All rights reserved.</p>
     </footer>
 </body>
 </html>

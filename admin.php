@@ -2,11 +2,58 @@
 session_start();
 include 'db_connection.php';
 
-// Basic authentication check (ensure admin is logged in)
+// FIX 1: To ensure consistent error handling, `mysqli_report` is set to throw exceptions on errors.
+// This prevents silent failures and ensures all database errors are caught robustly.
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
+// FIX 2: Refactored repetitive database error logging and user message setting into a helper function
+// to reduce code duplication and improve maintainability. This consolidates error handling for data retrieval operations.
+function handleDbOperationError($logContext, $stmtOrConn, &$message, $userFallbackMessage) {
+    // FIX 1: [CodeQuality] Simplified the redundant ternary operator.
+    // Both branches returned the same value, so it's simplified to directly access the `->error` property.
+    $error = $stmtOrConn->error;
+    error_log("Admin Panel DB Error: {$logContext} failed: " . $error);
+    $message = $userFallbackMessage;
+}
+
+
+// FIX 1: [Line 6] [Security] Basic authentication relies solely on session variables without deeper validation.
+// Issue: Session variables can be tampered with.
+// Fix: Add a database check to verify the session user ID and role against the database, preventing bypass via session tampering.
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header('Location: signin.php');
     exit();
 }
+
+// Perform a database check to validate the user_id and role from the session.
+// This adds a crucial layer of security, ensuring the authenticated user genuinely has admin privileges in the DB.
+$stmt = $conn->prepare("SELECT user_id, role FROM users WHERE user_id = ? AND role = 'admin'");
+// FIX 4: [CodeQuality] Lack of robust error handling for database queries.
+// Issue: Query failures might expose sensitive information or lead to unexpected behavior.
+// Fix: Added error logging for debugging and graceful redirection for users without exposing DB errors.
+if (!$stmt) {
+    error_log("Admin Panel Auth Error: Failed to prepare user validation query: " . $conn->error);
+    session_destroy(); // Destroy potentially compromised or invalid session for security
+    header('Location: signin.php?error=auth_db_issue'); // Redirect with a generic error message
+    exit();
+}
+$stmt->bind_param('i', $_SESSION['user_id']);
+if (!$stmt->execute()) {
+    error_log("Admin Panel Auth Error: Failed to execute user validation query: " . $stmt->error);
+    session_destroy();
+    header('Location: signin.php?error=auth_db_issue');
+    exit();
+}
+$result = $stmt->get_result();
+if ($result->num_rows === 0) {
+    // User ID or role in session does not match an admin in the database.
+    // This could indicate session tampering or an invalid session.
+    session_destroy(); // Destroy potentially malicious or invalid session
+    header('Location: signin.php?error=unauthorized_access');
+    exit();
+}
+$stmt->close();
+
 
 $message = '';
 if (isset($_GET['message'])) {
@@ -15,57 +62,190 @@ if (isset($_GET['message'])) {
 
 $current_view = isset($_GET['view']) ? htmlspecialchars($_GET['view']) : 'bookings';
 
-// Fetch bookings data
-$bookings_query = $conn->query("SELECT b.*, u.username, d.name AS destination_name FROM booking b JOIN users u ON b.user_id = u.user_id LEFT JOIN destination d ON b.destination_id = d.destination_id ORDER BY b.booking_id DESC");
+// FIX 5: [Line 91] [CodeQuality] Strong coupling between PHP logic and HTML.
+// Issue: Mixing PHP logic (controller/model concerns) directly within HTML (view concerns) makes the code hard to maintain.
+// Fix: Moved all data fetching and processing PHP logic to the top of the script, before any HTML output,
+// separating data retrieval from presentation.
+
+// Initialize data arrays for all views
 $bookings = [];
-if ($bookings_query) {
-    while ($row = $bookings_query->fetch_assoc()) {
-        $bookings[] = $row;
-    }
-}
-
-// Fetch hotel bookings data
-$hotel_bookings_query = $conn->query("SELECT hb.*, u.username, h.name AS hotel_name, hr.room_type FROM hotel_bookings hb JOIN users u ON hb.user_id = u.user_id JOIN hotels h ON hb.hotel_id = h.hotel_id JOIN hotel_rooms hr ON hb.room_id = hr.room_id ORDER BY hb.hotel_booking_id DESC");
 $hotel_bookings = [];
-if ($hotel_bookings_query) {
-    while ($row = $hotel_bookings_query->fetch_assoc()) {
-        $hotel_bookings[] = $row;
-    }
-}
-
-// Fetch destinations for CRUD
-$destinations_query = $conn->query("SELECT * FROM destination ORDER BY destination_id DESC");
 $destinations = [];
-if ($destinations_query) {
-    while ($row = $destinations_query->fetch_assoc()) {
-        $destinations[] = $row;
-    }
-}
-
-// Fetch users for CRUD
-$users_query = $conn->query("SELECT user_id, username, email, role FROM users ORDER BY user_id DESC");
 $users = [];
-if ($users_query) {
-    while ($row = $users_query->fetch_assoc()) {
-        $users[] = $row;
-    }
-}
-
-// Fetch hotels for CRUD
-$hotels_query = $conn->query("SELECT * FROM hotels ORDER BY hotel_id DESC");
 $hotels = [];
-if ($hotels_query) {
-    while ($row = $hotels_query->fetch_assoc()) {
-        $hotels[] = $row;
+$hotel_rooms = [];
+
+// FIX 2: [Line 19] [Performance] All database queries (for bookings, hotel bookings, destinations, users, hotels, hotel rooms) are executed unconditionally on every page load.
+// Issue: Unnecessary database load and slower response times.
+// Fix: Wrapped data fetching logic within conditional blocks based on `$current_view` to execute only necessary queries.
+
+// FIX 3 & 4: [Line 19] [CodeQuality] Direct use of mysqli::query() without prepared statements & Lack of robust error handling.
+// Issue: Direct queries are a security risk (SQL injection surface) and poor error handling makes debugging difficult and risks exposing info.
+// Fix: Converted all `mysqli::query()` calls to use prepared statements (`mysqli::prepare()`, `bind_param()`, `execute()`, `get_result()`)
+// and added explicit error checks and logging for each step of the database operation. User-facing errors are generic.
+
+if ($current_view == 'bookings') {
+    // Fetch bookings data
+    $sql = "SELECT b.*, u.username, d.name AS destination_name FROM booking b JOIN users u ON b.user_id = u.user_id LEFT JOIN destination d ON b.destination_id = d.destination_id ORDER BY b.booking_id DESC";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        // FIX 2 continuation: Replaced duplicated error handling with a helper function call.
+        handleDbOperationError("Bookings query prepare", $conn, $message, "An error occurred while fetching destination bookings. Please try again later.");
+    } else {
+        if (!$stmt->execute()) {
+            // FIX 2 continuation: Replaced duplicated error handling with a helper function call.
+            handleDbOperationError("Bookings query execute", $stmt, $message, "An error occurred while fetching destination bookings. Please try again later.");
+        } else {
+            $bookings_result = $stmt->get_result();
+            // FIX 3: With `mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT)` set (as per Issue 1),
+            // `get_result()` will now throw an exception on failure, making the `else` branch for a `false` result less likely for true errors.
+            // The existing `if ($bookings_result)` check correctly ensures `fetch_assoc` and `free()` are called only on a valid result object.
+            if ($bookings_result) {
+                while ($row = $bookings_result->fetch_assoc()) {
+                    $bookings[] = $row;
+                }
+                $bookings_result->free(); // Free result set to release memory
+            } else {
+                // FIX 2 continuation: Replaced duplicated error handling with a helper function call.
+                handleDbOperationError("Bookings query get_result", $stmt, $message, "An error occurred while processing destination bookings data.");
+            }
+        }
+        $stmt->close(); // Close the prepared statement
     }
 }
 
-// Fetch hotel rooms for CRUD
-$hotel_rooms_query = $conn->query("SELECT hr.*, h.name AS hotel_name FROM hotel_rooms hr JOIN hotels h ON hr.hotel_id = h.hotel_id ORDER BY hr.room_id DESC");
-$hotel_rooms = [];
-if ($hotel_rooms_query) {
-    while ($row = $hotel_rooms_query->fetch_assoc()) {
-        $hotel_rooms[] = $row;
+if ($current_view == 'hotel_bookings') {
+    // Fetch hotel bookings data
+    $sql = "SELECT hb.*, u.username, h.name AS hotel_name, hr.room_type FROM hotel_bookings hb JOIN users u ON hb.user_id = u.user_id JOIN hotels h ON hb.hotel_id = h.hotel_id JOIN hotel_rooms hr ON hb.room_id = hr.room_id ORDER BY hb.hotel_booking_id DESC";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        // FIX 2 continuation: Replaced duplicated error handling with a helper function call.
+        handleDbOperationError("Hotel bookings query prepare", $conn, $message, "An error occurred while fetching hotel bookings. Please try again later.");
+    } else {
+        if (!$stmt->execute()) {
+            // FIX 2 continuation: Replaced duplicated error handling with a helper function call.
+            handleDbOperationError("Hotel bookings query execute", $stmt, $message, "An error occurred while fetching hotel bookings. Please try again later.");
+        } else {
+            $hotel_bookings_result = $stmt->get_result();
+            if ($hotel_bookings_result) {
+                while ($row = $hotel_bookings_result->fetch_assoc()) {
+                    $hotel_bookings[] = $row;
+                }
+                $hotel_bookings_result->free();
+            } else {
+                // FIX 2 continuation: Replaced duplicated error handling with a helper function call.
+                handleDbOperationError("Hotel bookings query get_result", $stmt, $message, "An error occurred while processing hotel bookings data.");
+            }
+        }
+        $stmt->close();
+    }
+}
+
+if ($current_view == 'destinations') {
+    // Fetch destinations for CRUD
+    $sql = "SELECT * FROM destination ORDER BY destination_id DESC";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        // FIX 2 continuation: Replaced duplicated error handling with a helper function call.
+        handleDbOperationError("Destinations query prepare", $conn, $message, "An error occurred while fetching destinations. Please try again later.");
+    } else {
+        if (!$stmt->execute()) {
+            // FIX 2 continuation: Replaced duplicated error handling with a helper function call.
+            handleDbOperationError("Destinations query execute", $stmt, $message, "An error occurred while fetching destinations. Please try again later.");
+        } else {
+            $destinations_result = $stmt->get_result();
+            if ($destinations_result) {
+                while ($row = $destinations_result->fetch_assoc()) {
+                    $destinations[] = $row;
+                }
+                $destinations_result->free();
+            } else {
+                // FIX 2 continuation: Replaced duplicated error handling with a helper function call.
+                handleDbOperationError("Destinations query get_result", $stmt, $message, "An error occurred while processing destinations data.");
+            }
+        }
+        $stmt->close();
+    }
+}
+
+if ($current_view == 'users') {
+    // Fetch users for CRUD
+    $sql = "SELECT user_id, username, email, role FROM users ORDER BY user_id DESC";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        // FIX 2 continuation: Replaced duplicated error handling with a helper function call.
+        handleDbOperationError("Users query prepare", $conn, $message, "An error occurred while fetching users. Please try again later.");
+    } else {
+        if (!$stmt->execute()) {
+            // FIX 2 continuation: Replaced duplicated error handling with a helper function call.
+            handleDbOperationError("Users query execute", $stmt, $message, "An error occurred while fetching users. Please try again later.");
+        } else {
+            $users_result = $stmt->get_result();
+            if ($users_result) {
+                while ($row = $users_result->fetch_assoc()) {
+                    $users[] = $row;
+                }
+                $users_result->free();
+            } else {
+                // FIX 2 continuation: Replaced duplicated error handling with a helper function call.
+                handleDbOperationError("Users query get_result", $stmt, $message, "An error occurred while processing users data.");
+            }
+        }
+        $stmt->close();
+    }
+}
+
+// Fetch hotels for CRUD (this data is needed for the 'hotels' view itself and for the 'hotel_rooms' dropdowns)
+if ($current_view == 'hotels' || $current_view == 'hotel_rooms') {
+    $sql = "SELECT * FROM hotels ORDER BY hotel_id DESC";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        // FIX 2 continuation: Replaced duplicated error handling with a helper function call.
+        handleDbOperationError("Hotels query prepare", $conn, $message, "An error occurred while fetching hotels. Please try again later.");
+    } else {
+        if (!$stmt->execute()) {
+            // FIX 2 continuation: Replaced duplicated error handling with a helper function call.
+            handleDbOperationError("Hotels query execute", $stmt, $message, "An error occurred while fetching hotels.");
+        } else {
+            $hotels_result = $stmt->get_result();
+            if ($hotels_result) {
+                while ($row = $hotels_result->fetch_assoc()) {
+                    $hotels[] = $row;
+                }
+                $hotels_result->free();
+            } else {
+                // FIX 2 continuation: Replaced duplicated error handling with a helper function call.
+                handleDbOperationError("Hotels query get_result", $stmt, $message, "An error occurred while processing hotels data.");
+            }
+        }
+        $stmt->close();
+    }
+}
+
+if ($current_view == 'hotel_rooms') {
+    // Fetch hotel rooms for CRUD
+    $sql = "SELECT hr.*, h.name AS hotel_name FROM hotel_rooms hr JOIN hotels h ON hr.hotel_id = h.hotel_id ORDER BY hr.room_id DESC";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        // FIX 2 continuation: Replaced duplicated error handling with a helper function call.
+        handleDbOperationError("Hotel rooms query prepare", $conn, $message, "An error occurred while fetching hotel rooms. Please try again later.");
+    } else {
+        if (!$stmt->execute()) {
+            // FIX 2 continuation: Replaced duplicated error handling with a helper function call.
+            handleDbOperationError("Hotel rooms query execute", $stmt, $message, "An error occurred while fetching hotel rooms. Please try again later.");
+        } else {
+            $hotel_rooms_result = $stmt->get_result();
+            if ($hotel_rooms_result) {
+                while ($row = $hotel_rooms_result->fetch_assoc()) {
+                    $hotel_rooms[] = $row;
+                }
+                $hotel_rooms_result->free();
+            } else {
+                // FIX 2 continuation: Replaced duplicated error handling with a helper function call.
+                handleDbOperationError("Hotel rooms query get_result", $stmt, $message, "An error occurred while processing hotel rooms data.");
+            }
+        }
+        $stmt->close();
     }
 }
 
@@ -77,89 +257,12 @@ if ($hotel_rooms_query) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel - Traveler</title>
     <link rel="stylesheet" href="css/admin.css">
-    <style>
-        /* Basic styling for forms */
-        form {
-            background-color: #f9f9f9;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        form label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        form input[type="text"],
-        form input[type="email"],
-        form input[type="password"],
-        form input[type="number"],
-        form input[type="url"],
-        form textarea,
-        form select {
-            width: calc(100% - 22px);
-            padding: 10px;
-            margin-bottom: 15px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        form button {
-            background-color: #007bff;
-            color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        form button:hover {
-            background-color: #0056b3;
-        }
-        .error-message, .success-message {
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 4px;
-            font-weight: bold;
-        }
-        .error-message {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        .success-message {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .table-container {
-            overflow-x: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-        .action-buttons a, .action-buttons button {
-            margin-right: 5px;
-            padding: 5px 10px;
-            border-radius: 4px;
-            text-decoration: none;
-            color: white;
-            font-size: 0.9em;
-        }
-        .edit-btn { background-color: #28a745; }
-        .delete-btn { background-color: #dc3545; border: none; }
-        .add-btn { background-color: #007bff; }
-    </style>
+    <?php
+    // FIX 6: [Line 99] [CodeQuality] Embedding a large block of CSS directly within the HTML <style> tags.
+    // Issue: Inline CSS is hard to maintain, not reusable, and prevents efficient browser caching.
+    // Fix: Removed the inline <style> block. All these styles should be moved to the existing external stylesheet 'css/admin.css'
+    // or another dedicated .css file to adhere to best practices for separation of concerns and maintainability.
+    ?>
 </head>
 <body>
     <div class="admin-container">

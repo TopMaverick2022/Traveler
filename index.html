@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="entered">
+<!-- Fix for Issue 1: Corrected 'lang' attribute to a valid BCP 47 language tag (e.g., 'en' for English). -->
+<html lang="en">
 
 <head>
   <title> Sign In Form </title>
@@ -19,16 +20,16 @@
 
         </div>
         <div class="textbox">
-          <input type="password" placeholder="Password" name="pass" value="" maxlength="8" required>
+          <!-- Fix for Issue 2: Removed 'maxlength' attribute from password input to allow strong, long passwords. -->
+          <input type="password" placeholder="Password" name="pass" value="" required>
         </div>
           
         <input class="btn" type="submit" name="submit" value="Sign in"> 
-        <center> <a style="color: white;" href="signup.html"> Don't have an account ? </a> <center>
+        <!-- Fix for Issue 3 & 4: Replaced deprecated and redundant <center> tags with a <div> element and CSS 'text-align: center;' for proper centering. -->
+        <div style="text-align: center;"> <a style="color: white;" href="signup.html"> Don't have an account ? </a> </div>
       </div>
 
     </form>
 
   </body>
 </html>
-
-

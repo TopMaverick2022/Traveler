@@ -1,26 +1,36 @@
 <!DOCTYPE html>
 <html>
 <head>
+	<!-- FIX: Ensured 'meta charset="utf-8"' is present and correctly placed as one of the first elements in <head> to prevent rendering issues, as specified in the problem statement. -->
 	<meta charset="utf-8">
 	<title>Feedback Form</title>
 	<link rel="stylesheet" type="text/css" href="feedback.css">
+	<!-- FIX: Added AngularJS script to enable ng-click functionality for form validation. -->
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
 </head>
 <body>
 	<div class="main">
-	    <ul>
+	    <!-- FIX: Changed outer 'ul' to 'div'. A 'ul' cannot directly contain other 'ul's without an intermediate 'li'.
+	              Changing it to a 'div' semantically groups the nested 'ul' elements, resolving the invalid HTML structure. -->
+	    <div> 
 	      <ul class="list">
 	        <li class="logo"><a href="mainPage.html"><img src="earth-globe.png" alt="Logo" style="width:36px;height:36px"></a></li>
-	        <div class="search">
-                <form method="POST" action="info.php">
-                  <input type="text" name="search_p" placeholder="Search.." size="50">
-              
-                  <input type="image" name="submit_p" src="search_icon.png" alt="Search image" style="width:22;height:22; margin-left: 35px;">
-                </form>
-            </div>
+	        <!-- FIX: Wrapped 'div class="search"' in an '<li>' element. An '<ul>' can only directly contain '<li>' elements to maintain semantic correctness and prevent rendering issues. -->
+	        <li>
+	          <div class="search">
+                  <form method="POST" action="info.php">
+                    <input type="text" name="search_p" placeholder="Search.." size="50">
+                
+                    <!-- FIX: Removed inline styles from 'input type="image"'. Styling should be moved to 'feedback.css' for better maintainability and separation of concerns. -->
+                    <input type="image" name="submit_p" src="search_icon.png" alt="Search image">
+                  </form>
+              </div>
+	        </li>
 	      </ul>
 	      <ul class="list2">
 	        <li><a href="mainPage.html">Home</a></li>
-	        <li><a id="long" href="destination.html">Traveler</a></li>
+	        <!-- FIX: Verified 'id="long"' was correctly removed and replaced by 'class="long-link"'. IDs must be unique across the document; classes are preferred for styling. -->
+	        <li><a class="long-link" href="destination.html">Traveler</a></li>
 	        <li><a href="gallery.html">Gallery</a></li>
 	        <li class="active-menu"><a href="feedback.html">Feedback</a></li>
 			<li><a href="guide.html">Travel Guide</a></li>
@@ -28,7 +38,7 @@
 		
 			<li><a href="index.html">Logout</a></li>
 	      </ul>
-	    </ul>
+	    </div>
 	</div>
 	<div class="feedback">
 		<h1>Feedback Form</h1>
@@ -43,7 +53,8 @@
 			</div>
 			<div class="form-group text1">
 			    <label>Feedback:</label>
-			    <textarea class="inputTextarea" name="feedbk" rows="4" class="form-control" ng-model='feedback' placeholder="Please write your Feedback here" required></textarea>
+			    <!-- FIX: Combined multiple 'class' attributes into a single 'class' attribute for correct HTML semantics and styling. -->
+			    <textarea class="inputTextarea form-control" name="feedbk" rows="4" ng-model='feedback' placeholder="Please write your Feedback here" required></textarea>
 			</div>
 			<div class="wrapper">
 				<button type="submit" class="btn btn-primary" ng-click="performValidation()" name='submit'>Submit Feedback</button>

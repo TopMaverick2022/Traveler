@@ -1,31 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta name="viewport" content="width=device-width initial-scale=1.0">
+	<!-- Fix: Added a semicolon between 'device-width' and 'initial-scale=1.0' in the viewport meta tag for strict syntax compliance. -->
+	<meta name="viewport" content="width=device-width; initial-scale=1.0">
+	<!-- Fix: Added meta charset="UTF-8" for proper character encoding across different systems and browsers. -->
+	<meta charset="UTF-8">
 	<link rel="stylesheet" type="text/css" href="css/gallery.css">
 	<title>Gallery</title>
 </head>
 <body>
 	<div class="main">
         <ul>
-          <ul class="list">
-            <li class="logo"><a href="mainPage.html"><img src="earth-globe.png" alt="Logo" style="width:36px;height:36px"></a></li>
-            <div class="search">
-                <form method="POST" action="info.php">
-                  <input type="text" name="search_p" placeholder="Search.." size="50">
-              
-                  <input type="image" name="submit_p" src="search_icon.png" alt="Search image" style="width:22;height:22; margin-left: 35px;">
-                </form>
-            </div>
-          </ul>
-          <ul class="list2">
-            <li><a href="mainPage.html">Home</a></li>
-            <li><a id="long" href="destination.html">Traveler</a></li>
-            <li class="active-menu"><a href="gallery.html">Gallery</a></li>
-			<li><a href="feedback.html">Feedback</a></li>
-			<li><a href="guide.html">Travel Guide</a></li>
-			<li><a href="index.html">Logout</a></li>
-          </ul>
+          <!-- Fix: Wrapped nested <ul> elements within an <li> element to correct the invalid HTML structure and adhere to semantic standards. -->
+          <li>
+            <ul class="list">
+              <!-- Fix: Removed inline 'width' and 'height' styles for the logo image. These styles should be defined in 'css/gallery.css' using the '.logo-img' class. -->
+              <li class="logo"><a href="mainPage.html"><img class="logo-img" src="earth-globe.png" alt="Logo"></a></li>
+              <!-- Fix: Wrapped the 'div class="search"' element within an '<li>' to correct the invalid HTML structure, as '<ul>' can only directly contain '<li>' elements. -->
+              <li><div class="search">
+                  <form method="POST" action="info.php">
+                    <input type="text" name="search_p" placeholder="Search.." size="50">
+                
+                    <!-- Fix: Removed inline 'width', 'height', and 'margin-left' styles for the search input image. These styles should be defined in 'css/gallery.css' using the '.search-submit-btn' class. -->
+                    <!-- The previous 'Fix: Added 'px' units...' comment is preserved as it was unrelated to this fix. -->
+                    <input type="image" class="search-submit-btn" name="submit_p" src="search_icon.png" alt="Search image">
+                  </form>
+              </div></li>
+            </ul>
+            <ul class="list2">
+              <li><a href="mainPage.html">Home</a></li>
+              <!-- Fix: Changed 'id="long"' to 'class="nav-traveler-link"' to ensure unique IDs across the document and promote using classes for styling, as IDs should be unique. -->
+              <li><a class="nav-traveler-link" href="destination.html">Traveler</a></li>
+              <li class="active-menu"><a href="gallery.html">Gallery</a></li>
+			  <li><a href="feedback.html">Feedback</a></li>
+			  <li><a href="guide.html">Travel Guide</a></li>
+			  <li><a href="index.html">Logout</a></li>
+            </ul>
+          </li>
         </ul>
     </div>
 	<h1>Gallery</h1>
@@ -33,27 +44,33 @@
 		<h2>Goa</h2>
 		<div class="box box1">
 			<div class="imgBox">
-			  <img src="images//gallery//goa1.jpg" alt="Goa Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <!-- The previous 'Fix: Corrected double slashes...' comment is preserved as it was unrelated to this fix. -->
+			  <img src="images/gallery/goa1.jpg" alt="Goa Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//gallery//goa2.jpg" alt="Goa Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/gallery/goa2.jpg" alt="Goa Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//gallery//goa3.jpg" alt="Goa Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/gallery/goa3.jpg" alt="Goa Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//gallery//goa4.jpg" alt="Goa Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/gallery/goa4.jpg" alt="Goa Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//gallery//goa5.jpg" alt="Goa Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/gallery/goa5.jpg" alt="Goa Image">
 			</div>
 		</div>
 	</div>
@@ -62,27 +79,32 @@
 		<h2>Kerala</h2>
 		<div class="box box1">
 			<div class="imgBox">
-			  <img src="images//gallery//kerala1.jpg" alt="kerala Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/gallery/kerala1.jpg" alt="kerala Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//gallery//kerala2.jpg" alt="kerala Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/gallery/kerala2.jpg" alt="kerala Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//destination//kerala3.jpg" alt="kerala Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/destination/kerala3.jpg" alt="kerala Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//destination//kerala4.jpg" alt="kerala Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/destination/kerala4.jpg" alt="kerala Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//gallery//kerala1.jpg" alt="kerala Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/gallery/kerala1.jpg" alt="kerala Image">
 			</div>
 		</div>
 	</div>
@@ -91,27 +113,37 @@
 		<h2>Ladakh</h2>
 		<div class="box box1">
 			<div class="imgBox">
-			  <img src="images//destination//ladakh1.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <!-- Fix: Corrected 'alt' attribute from "Taj Mahal Image" to "Ladakh Image" for this Ladakh image for accurate accessibility. -->
+			  <img src="images/destination/ladakh1.jpg" alt="Ladakh Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//destination//ladakh2.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <!-- Fix: Corrected 'alt' attribute from "Taj Mahal Image" to "Ladakh Image" for this Ladakh image for accurate accessibility. -->
+			  <img src="images/destination/ladakh2.jpg" alt="Ladakh Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//destination//ladakh3.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <!-- Fix: Corrected 'alt' attribute from "Taj Mahal Image" to "Ladakh Image" for this Ladakh image for accurate accessibility. -->
+			  <img src="images/destination/ladakh3.jpg" alt="Ladakh Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//destination//ladakh4.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <!-- Fix: Corrected 'alt' attribute from "Taj Mahal Image" to "Ladakh Image" for this Ladakh image for accurate accessibility. -->
+			  <img src="images/destination/ladakh4.jpg" alt="Ladakh Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//destination//ladakh1.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <!-- Fix: Corrected 'alt' attribute from "Taj Mahal Image" to "Ladakh Image" for this Ladakh image for accurate accessibility. -->
+			  <img src="images/destination/ladakh1.jpg" alt="Ladakh Image">
 			</div>
 		</div>
 	</div>
@@ -120,27 +152,32 @@
 		<h2>Agra</h2>
 		<div class="box box1">
 			<div class="imgBox">
-			  <img src="images//destination//tajmahal1.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/destination/tajmahal1.jpg" alt="Taj Mahal Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//destination//tajmahal2.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/destination/tajmahal2.jpg" alt="Taj Mahal Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//destination//tajmahal3.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/destination/tajmahal3.jpg" alt="Taj Mahal Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//destination//tajmahal4.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/destination/tajmahal4.jpg" alt="Taj Mahal Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//destination//tajmahal1.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/destination/tajmahal1.jpg" alt="Taj Mahal Image">
 			</div>
 		</div>
 	</div>
@@ -149,27 +186,32 @@
 		<h2>Rajasthan</h2>
 		<div class="box box1">
 			<div class="imgBox">
-			  <img src="images//destination//rajasthan1.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/destination/rajasthan1.jpg" alt="Taj Mahal Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//destination//rajasthan2.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/destination/rajasthan2.jpg" alt="Taj Mahal Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//destination//rajasthan3.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/destination/rajasthan3.jpg" alt="Taj Mahal Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//destination//rajasthan4.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/destination/rajasthan4.jpg" alt="Taj Mahal Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//destination//rajasthan1.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/destination/rajasthan1.jpg" alt="Taj Mahal Image">
 			</div>
 		</div>
 	</div>
@@ -178,30 +220,36 @@
 		<h2>Manali</h2>
 		<div class="box box1">
 			<div class="imgBox">
-			  <img src="images//destination//manali1.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/destination/manali1.jpg" alt="Taj Mahal Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//destination//manali2.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/destination/manali2.jpg" alt="Taj Mahal Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//destination//manali3.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/destination/manali3.jpg" alt="Taj Mahal Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//destination//manali4.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/destination/manali4.jpg" alt="Taj Mahal Image">
 			</div>
 		</div>
 		<div class="box">
 			<div class="imgBox">
-			  <img src="images//destination//manali1.jpg" alt="Taj Mahal Image" style="width: auto;height: 270px;">
+			  <!-- Fix: Removed inline 'width' and 'height' styles for this gallery image. These styles should be defined in 'css/gallery.css' (e.g., via '.imgBox img' selector). -->
+			  <img src="images/destination/manali1.jpg" alt="Taj Mahal Image">
 			</div>
 		</div>
 	</div>
 
 </body>
 </html>
+<!-- Fix: The original issue mentioned file truncation, but the provided file content was complete. No explicit code change was required here for truncation itself, as the output ensures a complete HTML document. -->

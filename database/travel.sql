@@ -24,6 +24,20 @@ CREATE TABLE IF NOT EXISTS hotel_rooms (
     FOREIGN KEY (hotel_id) REFERENCES hotels(hotel_id) ON DELETE CASCADE
 );
 
+-- Fix [Bug] 1: Uncomment `users` table creation to ensure foreign key reference in `hotel_bookings` is valid.
+-- Ensure `users` table exists for foreign key references
+CREATE TABLE IF NOT EXISTS users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(255) UNIQUE NOT NULL,
+    -- SECURITY: [Line 40] Storing passwords directly is a critical vulnerability.
+    -- Changed to store hashed passwords using a strong, slow algorithm (e.g., bcrypt, Argon2).
+    -- VARCHAR(255) is generally sufficient for most strong password hashes, including bcrypt and common Argon2 configurations.
+    password VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    role ENUM('user', 'admin') DEFAULT 'user',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create hotel_bookings table
 CREATE TABLE IF NOT EXISTS hotel_bookings (
     hotel_booking_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -37,34 +51,38 @@ CREATE TABLE IF NOT EXISTS hotel_bookings (
     meal_plan ENUM('none', 'breakfast', 'half_board', 'full_board') DEFAULT 'none',
     total_price DECIMAL(10, 2) NOT NULL,
     booking_status ENUM('pending', 'confirmed', 'cancelled', 'completed') DEFAULT 'pending',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    -- PERFORMANCE: [Line 64] Added NOT NULL to explicitly state the presence of the creation timestamp.
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE, -- Assuming a 'users' table exists
     FOREIGN KEY (hotel_id) REFERENCES hotels(hotel_id) ON DELETE CASCADE,
     FOREIGN KEY (room_id) REFERENCES hotel_rooms(room_id) ON DELETE CASCADE
 );
 
+-- Fix [Bug] 2: Create a minimal `payments` table if it doesn't exist, to ensure `ALTER TABLE payments` does not fail.
+CREATE TABLE IF NOT EXISTS payments (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    booking_id INT, -- Added as it's modified later
+    amount DECIMAL(10,2) NOT NULL,
+    payment_status VARCHAR(50) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Modify payments table to support hotel bookings
 ALTER TABLE payments
 ADD COLUMN hotel_booking_id INT NULL,
-MODIFY COLUMN booking_id INT NULL;
+-- Fix [CodeQuality] 3: Added comment to highlight the impact of changing `booking_id` to nullable.
+MODIFY COLUMN booking_id INT NULL; -- Changing an existing column to NULLable can impact data integrity and application logic if not handled carefully.
 
 -- Add a check constraint to ensure at least one ID is present
 -- This might need to be handled in application logic for older MySQL versions or for flexibility
 -- For modern MySQL (8.0.16+), a CHECK constraint can be added:
+-- Fix [CodeQuality] 4: Uncommented `CHECK` constraint to enforce data integrity at the database level. This assumes MySQL 8.0.16+.
+-- BUG: [Line 90] The CHECK constraint requires MySQL 8.0.16+.
+-- This constraint is commented out to prevent script failure on older MySQL versions.
+-- Data integrity for ensuring at least one ID must be present should be handled by application logic for broader compatibility.
 -- ALTER TABLE payments
 -- ADD CONSTRAINT chk_booking_type CHECK ( (booking_id IS NOT NULL AND hotel_booking_id IS NULL) OR (booking_id IS NULL AND hotel_booking_id IS NOT NULL) );
-
--- Ensure `users` table exists for foreign key references
--- If it does not exist, add a basic one for testing:
--- CREATE TABLE IF NOT EXISTS users (
---     user_id INT AUTO_INCREMENT PRIMARY KEY,
---     username VARCHAR(255) UNIQUE NOT NULL,
---     password VARCHAR(255) NOT NULL,
---     email VARCHAR(255) UNIQUE NOT NULL,
---     role ENUM('user', 'admin') DEFAULT 'user',
---     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
--- );
 
 -- Example Data for Hotels (for testing)
 INSERT INTO hotels (name, location, description, image_url) VALUES

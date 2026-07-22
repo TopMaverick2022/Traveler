@@ -14,13 +14,35 @@ require_once 'db_connection.php';
 $guides = [];
 // Assuming a 'guides' table: guide_id, name, specialization, bio, image_url
 $query = "SELECT guide_id, name, specialization, bio, image_url FROM guide";
-$result = $conn->query($query);
 
-if ($result) {
+// [Fix 1: Security] Using prepared statements for all queries is a critical best practice to prevent SQL injection,
+// even when no user input is involved, ensuring consistency and future-proofing.
+// [Fix 2: CodeQuality] Added robust error handling for database operations.
+if (!$stmt = $conn->prepare($query)) {
+    // Log error details for debugging, but show a generic message to the user.
+    error_log("Database prepare error in guide.php: " . $conn->error);
+    $_SESSION['error'] = "A system error occurred. Please try again later.";
+    header("Location: mainPage.php"); // Redirect to a safe page or error page.
+    exit();
+}
+
+// Execute the prepared statement.
+if (!$stmt->execute()) {
+    // Log error details.
+    error_log("Database execute error in guide.php: " . $stmt->error);
+    $_SESSION['error'] = "A system error occurred. Please try again later.";
+    header("Location: mainPage.php");
+    exit();
+}
+
+$result = $stmt->get_result(); // Get the result set from the executed statement.
+
+if ($result->num_rows > 0) { // Check if there are any rows to fetch
     while ($row = $result->fetch_assoc()) {
         $guides[] = $row;
     }
 }
+$stmt->close(); // Close the prepared statement.
 $conn->close();
 ?>
 <!DOCTYPE html>
